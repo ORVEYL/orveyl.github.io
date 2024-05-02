@@ -1074,7 +1074,7 @@ export class Orveyl {
         
         // TODO: only collect if geom has changed
         const geom_collector = new GeometryCollector();
-        if (Scene.Manager.active.visible) {
+        if (Scene.Manager.active?.visible) {
             geom_collector.visit(Scene.Manager.active);
         }
         geom_collector.visit(Scene.BreadcrumbRoot);

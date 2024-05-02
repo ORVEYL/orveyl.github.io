@@ -41,7 +41,7 @@ export class Chamber extends Scene {
 
     thru(key) {
         return key.length ?
-            this.adj.get(key.charAt(0)?.thru(key.slice(1))) ?? null :
+            this.adj.get(key.charAt(0))?.thru(key.slice(1)) ?? null :
             this;
     }
 
@@ -60,17 +60,7 @@ export class Chamber extends Scene {
     }
 
     get neighbors() { return this.adj.values(); }
-    get word() { return this.prev().word.append(this.back); }
-
-    orbit(seq, max=16) {
-        let here = this;
-        let step = 0;
-        const path = [here];
-        do {
-            const g = seq.charAt(Calc.Wrap(seq.length)(step));
-        } while (step < max);
-        return path;
-    }
+    get word() { return this.prev()?.word.concat("",this.back) ?? ""; }
 }
 
 export class WordTree extends Scene {
@@ -209,6 +199,18 @@ export class WordTree extends Scene {
             console.timeEnd(`${this.name}.expand`);
             console.groupEnd(`${this.name}.expand`);
         }
+
+        return this;
+    }
+
+    orbit(word, seq, limit=16, onAdd=null) {
+        const wrap = Wrap(seq.length);
+        let here = word;
+        let step = 0;
+        do {
+            this.add(here, onAdd);
+            here = this.sys.reduce(here + seq.charAt(wrap(step++)));
+        } while (here != word && step < limit);
 
         return this;
     }
