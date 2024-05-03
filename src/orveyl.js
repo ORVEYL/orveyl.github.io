@@ -99,14 +99,16 @@ export class Orveyl {
                 err("Requested GPUDevice not found.");
         } catch (e) {
             Orveyl.Status.innerHTML = [
-                `Sorry, this site requires WebGPU support!`,
+                `Sorry, this application requires WebGPU support!`,
                 ``,
                 `Desktop browsers to try:`,
                 `-- Google Chrome`,
                 `-- Microsoft Edge`,
                 `-- Firefox Nightly`,
                 ``,
-                `For more info, see <a href="https://github.com/gpuweb/gpuweb/wiki/Implementation-Status">WebGPU Implementation Status</a>.`,
+                `For more info, see <a style="color:#fff" href="https://github.com/gpuweb/gpuweb/wiki/Implementation-Status">WebGPU Implementation Status</a>.`,
+                ``,
+                `To view non-interactive screenshots and demo descriptions, please visit the <a style="color:#fff" href="/gallery.html">Gallery</a>.`
             ].join("<br>");
             throw e;
         }
