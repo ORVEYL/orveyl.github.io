@@ -4,7 +4,14 @@ import { Scene } from "../node/scene.js";
 import { Geometry } from "../node/scene/geometry.js";
 import { VertexArray } from "../gpubuffer.js";
 import * as Calc from "../math/calc.js";
+import { π, Rand } from "../math/calc.js";
 import { V4, M4 } from "../math/vector.js";
+
+import { Text } from "../node/scene/text.js";
+import { Gizmo } from "../node/scene/gizmo.js";
+import { Ticker } from "../node/component/ticker.js"
+import { Sphere } from "../node/scene/shape.js";
+import { Controller } from "../node/component/controller.js";
 
 export const DefaultDemo = new Scene("DefaultDemo");
 
@@ -82,5 +89,82 @@ for (let i=1; i<=N; ++i) {
 const geom = new Geometry("Geom", DefaultDemo, va);
 geom.mode = 1;
 geom.blend = 1;
+
+{
+    const txt = new Text("OrveylText", DefaultDemo);
+    txt.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovX(ds));
+    txt.setSize(1, 1, 1/4).setOffset(-4.5);
+    txt.setText("# ORVEYL #").commit();
+}
+
+{
+    const txt = new Text("TutorialText", DefaultDemo);
+    txt.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(+ds/3), M4.MovX(ds));
+    txt.setSize(1, 1, 1/16).setOffset(-1);
+    txt.setText("ADC").commit();
+}
+
+{
+    const txt = new Text("TutorialText", DefaultDemo);
+    txt.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(-ds/3), M4.MovX(ds));
+    txt.setSize(1, 1, 1/32).setOffset(-12).setSpacing(2);
+    txt.setText(
+        "       WELCOME TO       ",
+        " -- HYPERBOLIC SPACE -- ",
+        "USE KEYBOARD TO NAVIGATE",
+    ).commit();
+}
+
+{
+    const txt = new Text("DemoListText", DefaultDemo);
+    txt.lm(M4.RotI(-π/2), M4.MovZ(-ds));
+    txt.setSize(1, 1, 1/16).setOffset(-11).setSpacing(3);
+    txt.setText(
+        "      -- DEMOS --      ",
+        "  <NEBULA>-@#",
+        " <POPPIES>-@#",
+        " <FRACTAL>-@#",
+    ).commit();
+
+    const branches = txt.getBranches();
+    branches[0].dest = "nebula&dX=0.78&dZ=0.78";
+    branches[1].dest = "poppies";
+    branches[2].dest = "fractal";
+
+    for (let br of branches) {
+        const sphere = new Sphere("Sphere", br, 1/16);
+        const portal = new Scene("Portal", br);
+
+        const va = new VertexArray();
+        for (let i = 0; i < 256; ++i) {
+            const [pos, col] = [
+                M4.rm(
+                    M4.Euler(π*Rand.Sign(), Math.asin(Rand.Sign())),
+                    M4.MovX(Rand.Unit()/8)
+                ).Cw,
+                V4.of(Rand.Unit(), Rand.Unit(), Rand.Unit(), 1),
+            ];
+            va.push([V4.w, V4.ones]);
+            va.push([pos, col]);
+        }
+        
+        const geom = new Geometry("PortalGeom", portal, va);
+        geom.mode = 1;
+        geom.blend = 1;
+
+        const point = new Geometry("PortalGlow", portal, new VertexArray().push([V4.w, V4.ones]));
+        point.mode = 0;
+        point.blend = 1;
+
+        const anim = new Ticker("Anim", portal, self => {
+            self.parent.matrix.copy(M4.RotI(self.t));
+
+            const pos = Orveyl.DefaultPlayer.world_from_local.Cw;
+            if (pos && sphere.test(pos)) {
+                window.location.assign(`/?demo=${br.dest}`)
+            }
+        }).play();
+    }
+}
 
 Scene.Manager.add(DefaultDemo).useIndex(0);
