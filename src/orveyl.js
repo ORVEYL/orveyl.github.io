@@ -99,7 +99,11 @@ export class Orveyl {
                 err("Requested GPUDevice not found.");
         } catch (e) {
             Orveyl.Status.innerHTML = [
-                `Sorry, this application requires WebGPU support!`,
+                `orveyl.js is a 3D Non-Euclidean WebGPU Renderer, and hobby project of adc.`,
+                ``,
+                `To view non-interactive screenshots and demo descriptions, please visit the <a style="color:#fff" href="/gallery.html">Gallery</a>.`,
+                ``,
+                `This application requires WebGPU support!`,
                 ``,
                 `Desktop browsers to try:`,
                 `-- Google Chrome`,
@@ -107,8 +111,6 @@ export class Orveyl {
                 `-- Firefox Nightly`,
                 ``,
                 `For more info, see <a style="color:#fff" href="https://github.com/gpuweb/gpuweb/wiki/Implementation-Status">WebGPU Implementation Status</a>.`,
-                ``,
-                `To view non-interactive screenshots and demo descriptions, please visit the <a style="color:#fff" href="/gallery.html">Gallery</a>.`
             ].join("<br>");
             throw e;
         }
@@ -943,9 +945,15 @@ export class Orveyl {
             script.type = `module`;
             script.src = `/src/demos/${name}.js`;
             script.onload = function () {
-                console.log(`Loaded demo: ${script.src}`)
+                console.log(`Loaded demo: ${script.src}`);
+                if (name != "default") {
+                    document.title = `ORVEYL :: ${name.toUpperCase()}`;
+                } else {
+                    document.title = `:: ORVEYL ::`;
+                }
             };
 
+            document.title = `ORVEYL :: Loading...`;
             console.log(`Loading demo... ${script.src}`)
             document.head.appendChild(script);
         };
