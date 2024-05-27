@@ -24,6 +24,8 @@ export class Orveyl {
     static Device = null;
 
     static Status = document.getElementById("status");
+    static Parameters = document.getElementById("parameters");
+
     static Canvas;
     static MaxResolution = [1920, 1080];
     static Maximized = false;
