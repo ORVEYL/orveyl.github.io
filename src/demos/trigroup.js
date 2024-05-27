@@ -218,7 +218,7 @@ const [sp, fl] = [
 ];
 
 const Mot = (d, dt=1) => M4.Motor(
-    0,sp(-d),0,
+    0,sp(+d),0,
     fl(+d),0,0,
     1, 1, dt
 );
