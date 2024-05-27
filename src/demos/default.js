@@ -121,19 +121,22 @@ geom.blend = 1;
     txt.setSize(1, 1, 1/16).setOffset(-11).setSpacing(3);
     txt.setText(
         "      -- DEMOS --      ",
+        "<TRIGROUP>-@#",
         "  <NEBULA>-@#",
         " <POPPIES>-@#",
         " <FRACTAL>-@#",
     ).commit();
 
     const branches = txt.getBranches();
-    branches[0].dest = "nebula&dX=0.78&dZ=0.78";
-    branches[1].dest = "poppies";
-    branches[2].dest = "fractal";
+    branches[0].dest = "trigroup";
+    branches[1].dest = "nebula&dX=0.78&dZ=0.78";
+    branches[2].dest = "poppies";
+    branches[3].dest = "fractal";
 
     for (let br of branches) {
-        const sphere = new Sphere("Sphere", br, 1/16);
+        const sphere = new Sphere("Sphere", br, 1/10);
         const portal = new Scene("Portal", br);
+        portal.triggered = false;
 
         const va = new VertexArray();
         for (let i = 0; i < 256; ++i) {
@@ -160,9 +163,16 @@ geom.blend = 1;
             self.parent.matrix.copy(M4.RotI(self.t));
 
             const pos = Orveyl.DefaultPlayer.world_from_local.Cw;
-            if (pos && sphere.test(pos)) {
-                window.location.assign(`/?demo=${br.dest}`)
+            if (pos) {
+                const overlapped = sphere.test(pos);
+                if (overlapped && !portal.triggered) {
+                    portal.triggered = true;
+                    window.location.assign(`/?demo=${br.dest}`);
+                } else {
+                    portal.triggered = overlapped;
+                }
             }
+
         }).play();
     }
 }
