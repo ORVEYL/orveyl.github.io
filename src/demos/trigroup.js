@@ -10,21 +10,181 @@ import { V4, B4, M4 } from "../math/vector.js";
 
 import { Scene } from "../node/scene.js";
 import { Geometry } from "../node/scene/geometry.js";
-import { Camera } from "../node/scene/camera.js";
 
 import * as KB from "../math/knuthbendix.js";
-import { WordTree } from "../node/scene/wordtree.js";
+import { WordTree, Chamber } from "../node/scene/wordtree.js";
 import { VertexArray, IndexBuffer, Vertex } from "../gpubuffer.js";
 import { Orveyl } from "../orveyl.js";
 
+class TriGroup extends WordTree {
+    constructor(name, parent, PQR, scale, depth, bailout) {
+        const [P,Q,R] = PQR;
+        const sys = new KB.System(
+            ["a", "b", "c"],
+            ["a", "b", "c"],
+            KB.Rule.Array(
+                ["aa"], ["bb"], ["cc"],
+                ["ab".repeat(P)],
+                ["bc".repeat(Q)],
+                ["ac".repeat(R)],
+            )
+        ).complete();
+
+        super(name, sys, parent);
+
+        this.PQR = PQR;
+        this.scale = scale;
+        this.depth = depth;
+        this.bailout = bailout;
+
+        this.tri = this.AAA(π/P, π/Q, π/R);
+        this.spin = s => this.tri.geom.Case(s, 0, s);
+        this.flux = f => this.tri.geom.Case(0, f, f);
+        this.motor = dist => M4.Motor(
+            0, this.spin(dist),0,
+            this.flux(dist),0,0,
+            1, Calc.Sgn(this.scale), 1,
+        );
+
+        this.sys.repr["a"] = M4.Refl(
+            M4.rm(
+                this.motor(this.tri.sides[0]), M4.RotI(π/2-this.tri.angles[2])
+            ).T.Rx
+        );
+        this.sys.repr["b"] = M4.Refl(
+            M4.rm(
+                M4.RotI(this.tri.angles[1])
+            ).T.Ry
+        );
+        this.sys.repr["c"] = M4.Refl(
+            M4.id.Ry
+        );
+    }
+
+    expand() {
+        this.clear();
+        this.orbit("", "bc", 2*this.PQR[1]);
+
+        const t0 = Date.now();
+        for (let i = 0; i < this.depth; ++i) {
+            super.expand(1);
+    
+            const t = Date.now();
+            const dt = t-t0;
+            if (dt > 1000*this.bailout) {
+                Orveyl.Status.innerHTML += `${this.name} bailed out after ${dt}ms @ depth=${i}<br>`;
+                break;
+            }
+        }
+
+        Orveyl.Status.innerHTML += `${this.name} generated ${this.count} chambers.<br>`;
+    }
+
+    AAA(a, b, c=π/2) {
+        const tri = {};
+    
+        tri.angles = [a, b, c];
+        tri.sides = [0,0,0];
+    
+        const excess = Calc.Excess(a,b,c);
+        tri.geom = Geom.Match(excess);
+        if (tri.geom === Geom.Par) {
+            tri.sides[0] = Calc.Abs(scale);
+            tri.sides[1] = Calc.Abs(scale) * Geom.Sph.Sin(b) / Geom.Sph.Sin(a);
+            tri.sides[2] = Calc.Abs(scale) * Geom.Sph.Sin(c) / Geom.Sph.Sin(a);
+    
+            const s = tri.perimeter / 2;
+            tri.area = Calc.Sqrt(
+                s*
+                (s-tri.sides[0])*
+                (s-tri.sides[1])*
+                (s-tri.sides[2])
+            );
+            return tri;
+        }
+    
+        const [cA, sA] = Geom.Sph.Exp(a);
+        const [cB, sB] = Geom.Sph.Exp(b);
+        const [cC, sC] = Geom.Sph.Exp(c);
+    
+        tri.sides[0] = tri.geom.CosInv((cA + cB*cC) / (sB*sC));
+        tri.sides[1] = tri.geom.CosInv((cB + cC*cA) / (sC*sA));
+        tri.sides[2] = tri.geom.CosInv((cC + cA*cB) / (sA*sB));
+    
+        tri.area = Calc.Abs(-excess);
+    
+        return tri;
+    }
+
+    getCol(pal, v, M, par) {
+
+        const RGauss = Rand.Gauss(0.5)(0.25);
+        const [ev_col, od_col] = [
+            V4.of(0.8, 0.8, 0.8, 1),
+            V4.of(0.2, 0.2, 0.2, 1),
+        ];
+        const par_col = par ? ev_col : od_col;
+
+        switch (+pal) {
+            default:
+            case 0:
+                return v.col.dup.mul(par_col);
+
+            case 1: {
+                const c = M.ra(v.pos).setW(0);
+                let csc = Calc.InvSqrt(c.ip(c));
+                if (isFinite(csc)) {
+                    c.sc(csc).add(V4.ones).sc(0.5).setW(1);
+                } else {
+                    c.set(1,1,1,1);
+                }
+
+                return c.mul(par_col);
+            }
+
+            case 2: return v.col.dup.mul(
+                V4.of(1, 0.75*RGauss(), 0, 1)
+            );
+            case 3: return v.col.dup.mul(
+                V4.of(0.25*RGauss(), 0.5+0.25*RGauss(), 0, 1)
+            );
+            case 4: return v.col.dup.mul(
+                V4.of(0, 0.5*RGauss(), 0.75+0.25*RGauss(), 1)
+            );
+            case 5: return v.col.dup.mul(
+                V4.of(0.5*RGauss(), 0.5+0.25*RGauss(), 0.75+0.25*RGauss(), 1)
+            );
+            case 6: return v.col.dup.mul(
+                V4.of(0.5+0.5*RGauss(), 0.25*RGauss(), 0.5+0.5*RGauss(), 1)
+            );
+            case 7: return v.col.dup.mul(
+                V4.of(0.75+0.25*RGauss(), 0.5+0.25*RGauss(), 0.5*RGauss(), 1)
+            );
+            case 8: return v.col.dup.mul(
+                V4.of(0.75+0.25*RGauss(), 0.75+0.25*RGauss(), 0.75+0.25*RGauss(), 1)
+            );
+            case 9: return v.col.dup.mul(
+                V4.of(0.125*RGauss(), 0.125*RGauss(), 0.125*RGauss(), 1)
+            );
+            case 10: return v.col.dup.mul(
+                V4.of(RGauss(), RGauss(), RGauss(), 1)
+            );
+        }
+
+    }
+};
+
 const [P,Q,R] = [
-    Calc.Clamp(Orveyl.InitParams.get("P") ?? 5, 2, 16),
-    Calc.Clamp(Orveyl.InitParams.get("Q") ?? 4, 2, 16),
-    Calc.Clamp(Orveyl.InitParams.get("R") ?? 2, 2, 16),
+    Calc.Clamp(Orveyl.InitParams.get("P") ?? 5, 2, 32),
+    Calc.Clamp(Orveyl.InitParams.get("Q") ?? 4, 2, 32),
+    Calc.Clamp(Orveyl.InitParams.get("R") ?? 2, 2, 32),
 ];
 
+const floorR = Orveyl.InitParams.get("floorR") ?? 0;
 const floorZ = Orveyl.InitParams.get("floorZ") ?? 0;
-const ceilZ = Orveyl.InitParams.get("ceilZ") ?? 2;
+
+const ceilR = Orveyl.InitParams.get("ceilR") ?? 2;
+const ceilZ = Orveyl.InitParams.get("ceilZ") ?? 0;
 
 const offset = Orveyl.InitParams.get("offset") ?? 1.5;
 const scale = Orveyl.InitParams.get("scale") ?? 1;
@@ -33,7 +193,7 @@ const skyCol = Orveyl.InitParams.get("skyCol") ?? "000000";
 const depth = Orveyl.InitParams.get("depth") ?? 16;
 const bailout = Orveyl.InitParams.get("bailout") ?? 3;
 
-const pqr_input = `type="number" min="2" max="16" step="1" style="width:2.5em"`;
+const pqr_input = `type="number" min="2" max="32" step="1" style="width:2.5em"`;
 
 const mask_input = name => {
     const mask = mask_value(name);
@@ -113,13 +273,17 @@ Orveyl.Parameters.innerHTML = `<form>` + [
         `<input id="R" ${pqr_input} name="R" value="${R}">`,
     ].join(" "),
     ``,
-    `Floor Mask: ${mask_input("floor")}`,
-    `Floor Palette: ${pal_input("floor")}`,
-    `Floor Height: <input id="floorZ" type="number" step="0.1" style="width:4em" value="${floorZ}">`,
+    `:: Floor ::`,
+    `- Mask: ${mask_input("floor")}`,
+    `- Palette: ${pal_input("floor")}`,
+    `- Radius: <input id="floorR" type="number" step="0.1" style="width:4em" value="${floorR}">`,
+    `- Height: <input id="floorZ" type="number" step="0.1" style="width:4em" value="${floorZ}">`,
     ``,
-    `Ceil Mask: ${mask_input("ceil")}`,
-    `Ceil Palette: ${pal_input("ceil")}`,
-    `Ceil Height: <input id="ceilZ" type="number" step="0.1" style="width:4em" value="${ceilZ}">`,
+    `:: Ceiling ::`,
+    `- Mask: ${mask_input("ceil")}`,
+    `- Palette: ${pal_input("ceil")}`,
+    `- Radius: <input id="ceilR" type="number" step="0.1" style="width:4em" value="${ceilR}">`,
+    `- Height: <input id="ceilZ" type="number" step="0.1" style="width:4em" value="${ceilZ}">`,
     ``,
     `Offset: <input id="offset" type="number" step="0.1" style="width:3em" value="${offset}">`,
     `Scale: <input id="scale" type="number" step="0.1" style="width:4em" value="${scale}">`,
@@ -127,8 +291,8 @@ Orveyl.Parameters.innerHTML = `<form>` + [
     ``,
     `Depth: <input id="depth" type="number" min="0" step="1" style="width:2.5em" value="${depth}">`,
     `Bailout: <input id="bailout" type="number" min="0" step="1" style="width:2.5em" value="${bailout}"> seconds`,
-    
-    `<input type="button" id="generate" value="Generate">`,
+    ``,
+    `:: <input type="button" id="generate" value="Generate"> ::`,
 ].join("<br>") + `</form>`;
 
 document.getElementById("generate").onclick = () => {
@@ -140,10 +304,12 @@ document.getElementById("generate").onclick = () => {
 
         `floorM=${mask_byte("floor")}`,
         `floorPal=${document.getElementById("floorPal").value}`,
+        `floorR=${document.getElementById("floorR").value}`,
         `floorZ=${document.getElementById("floorZ").value}`,
 
         `ceilM=${mask_byte("ceil")}`,
         `ceilPal=${document.getElementById("ceilPal").value}`,
+        `ceilR=${document.getElementById("ceilR").value}`,
         `ceilZ=${document.getElementById("ceilZ").value}`,
 
         `offset=${document.getElementById("offset").value}`,
@@ -169,238 +335,106 @@ document.getElementById("skyCol").addEventListener("change", ev => {
     set_sky(ev.target.value.slice(1));
 }, false);
 
-const sys = new KB.System(
-    ["a", "b", "c"],
-    ["a", "b", "c"],
-    KB.Rule.Array(
-        ["aa"], ["bb"], ["cc"],
-        ["ab".repeat(P)],
-        ["bc".repeat(Q)],
-        ["ac".repeat(R)],
-    )
-).complete();
+const Tg = new TriGroup("TriGroup", null, [P,Q,R], scale, depth, bailout);
+Scene.Manager.add(Tg).useIndex(0);
 
-function AAA(a, b, c=π/2) {
-    const tri = {};
+async function* genstep(tg, layer) {
 
-    tri.angles = [a, b, c];
-    tri.sides = [0,0,0];
+    const A_from_O = M4.id;
 
-    const excess = Calc.Excess(a,b,c);
-    tri.geom = Geom.Match(excess);
-    if (tri.geom === Geom.Par) {
-        tri.sides[0] = Calc.Abs(scale);
-        tri.sides[1] = Calc.Abs(scale) * Geom.Sph.Sin(b) / Geom.Sph.Sin(a);
-        tri.sides[2] = Calc.Abs(scale) * Geom.Sph.Sin(c) / Geom.Sph.Sin(a);
+    const B_from_A = M4.rm(
+        tg.motor(tg.tri.sides[0]),
+        M4.RotI(π-tg.tri.angles[2])
+    );
 
-        const s = tri.perimeter / 2;
-        tri.area = Calc.Sqrt(
-            s*
-            (s-tri.sides[0])*
-            (s-tri.sides[1])*
-            (s-tri.sides[2])
-        );
-        return tri;
-    }
+    const C_from_B = M4.rm(
+        tg.motor(tg.tri.sides[1]),
+        M4.RotI(π-tg.tri.angles[0])
+    );
 
-    const [cA, sA] = Geom.Sph.Exp(a);
-    const [cB, sB] = Geom.Sph.Exp(b);
-    const [cC, sC] = Geom.Sph.Exp(c);
+    const [A,B,C] = [
+        M4.lm(A_from_O),
+        M4.lm(B_from_A, A_from_O),
+        M4.lm(C_from_B, B_from_A, A_from_O),
+    ];
 
-    tri.sides[0] = tri.geom.CosInv((cA + cB*cC) / (sB*sC));
-    tri.sides[1] = tri.geom.CosInv((cB + cC*cA) / (sC*sA));
-    tri.sides[2] = tri.geom.CosInv((cC + cA*cB) / (sA*sB));
+    const [mAB, mBC, mCA] = [
+        M4.lm(tg.motor(tg.tri.sides[0]/2), A),
+        M4.lm(tg.motor(tg.tri.sides[1]/2), B),
+        M4.lm(tg.motor(tg.tri.sides[2]/2), C),
+    ];
 
-    tri.area = Calc.Abs(-excess);
+    const matrix_templates = [
+        [A, B, C],
+        [A, mAB, mCA],
+        [B, mBC, mAB],
+        [C, mCA, mBC],
+        [mAB, mBC, mCA],
+    ];
 
-    return tri;
-}
+    const dR = M4.MovZ(layer.radius);
+    const dH = M4.MovZ(layer.height);
 
-const tri = AAA(π/P, π/Q, π/R);
-const [
-    dAB, dBC, dCA,
-    tab, tbc, tca,
-] = [
-    tri.sides[0],
-    tri.sides[1],
-    tri.sides[2],
-
-    tri.angles[0],
-    tri.angles[1],
-    tri.angles[2],
-];
-
-const [sp, fl] = [
-    s => tri.geom.Case(s,0,s),
-    f => tri.geom.Case(0,f,f),
-];
-
-const Mot = (d, dt=1) => M4.Motor(
-    0,sp(+d),0,
-    fl(+d),0,0,
-    1, 1, dt
-);
-
-sys.repr["a"] = M4.Refl(
-    M4.rm(Mot(dAB), M4.RotI(π/2-tca)).T.Rx
-);
-sys.repr["b"] = M4.Refl(
-    M4.rm(M4.RotI(tbc)).T.Ry
-);
-sys.repr["c"] = M4.Refl(
-    M4.rm().T.Ry
-);
-
-const SphR = M4.MovZ(tri.geom.Case(scale,0,0));
-const A_from_O = M4.id;
-const B_from_A = M4.rm(Mot(dAB), M4.RotI(π-tca));
-const C_from_B = M4.rm(Mot(dBC), M4.RotI(π-tab));
-
-const [A,B,C] = [
-    M4.lm(SphR, A_from_O),
-    M4.lm(SphR, B_from_A, A_from_O),
-    M4.lm(SphR, C_from_B, B_from_A, A_from_O),
-];
-
-const [mAB, mBC, mCA] = [
-    M4.lm(SphR, Mot(dAB, 1/2), A_from_O),
-    M4.lm(SphR, Mot(dBC, 1/2), B_from_A, A_from_O),
-    M4.lm(SphR, Mot(dCA, 1/2), C_from_B, B_from_A, A_from_O),
-];
-
-const matrix_templates = [
-    [A, B, C],
-    [A, mAB, mCA],
-    [B, mBC, mAB],
-    [C, mCA, mBC],
-    [mAB, mBC, mCA],
-];
-
-const FloorZ = M4.MovZ(floorZ);
-const floor_template = new VertexArray();
-for (let i of mask_idx("floor")) {
-    for (let m of matrix_templates[i]) {
-        floor_template.push([M4.rm(m, FloorZ).Cw, V4.ones]);
-    }
-}
-
-const CeilZ = M4.MovZ(ceilZ);
-const ceil_template = new VertexArray();
-for (let i of mask_idx("ceil")) {
-    for (let m of matrix_templates[i]) {
-        ceil_template.push([M4.rm(m, CeilZ).Cw, V4.ones]);
-    }
-}
-
-const floorPal = pal_value("floor");
-const ceilPal = pal_value("ceil");
-
-const [ev_col, od_col] = [
-    V4.of(0.8, 0.8, 0.8, 1),
-    V4.of(0.2, 0.2, 0.2, 1),
-];
-
-const RGauss = Rand.Gauss(0.5)(0.25);
-
-const va = new VertexArray();
-const trigroup_wt = new WordTree("TriGroupWT", sys);
-const onAdd = here => {
-    const M = here.world_from_local;
-
-    here.par = !(here.parent.par ?? true);
-    const par_col = here.par ? ev_col : od_col;
-
-    const get_col = (pal, v) => {
-        switch (+pal) {
-            default:
-            case 0:
-                return v.col.dup.mul(par_col);
-
-            case 1: {
-                const c = M.ra(v.pos).setW(0);
-                let csc = Calc.InvSqrt(c.ip(c));
-                if (isFinite(csc)) {
-                    c.sc(csc).add(V4.ones).sc(0.5).setW(1);
-                } else {
-                    c.set(1,1,1,1);
-                }
-
-                return c.mul(par_col);
-            }
-
-            case 2: {
-                return v.col.dup.mul(V4.of(1, 0.75*RGauss(), 0, 1));
-            }
-
-            case 3: {
-                return v.col.dup.mul(V4.of(0.25*RGauss(), 0.5+0.25*RGauss(), 0, 1));
-            }
-
-            case 4: {
-                return v.col.dup.mul(V4.of(0, 0.5*RGauss(), 0.75+0.25*RGauss(), 1));
-            }
-
-            case 5: {
-                return v.col.dup.mul(V4.of(0.5*RGauss(), 0.5+0.25*RGauss(), 0.75+0.25*RGauss(), 1));
-            }
-
-            case 6: {
-                return v.col.dup.mul(V4.of(0.5+0.5*RGauss(), 0.25*RGauss(), 0.5+0.5*RGauss(), 1));
-            }
-
-            case 7: {
-                return v.col.dup.mul(V4.of(0.75+0.25*RGauss(), 0.5+0.25*RGauss(), 0.5*RGauss(), 1));
-            }
-
-            case 8: {
-                return v.col.dup.mul(V4.of(0.75+0.25*RGauss(), 0.75+0.25*RGauss(), 0.75+0.25*RGauss(), 1));
-            }
-
-            case 9: {
-                return v.col.dup.mul(V4.of(0.125*RGauss(), 0.125*RGauss(), 0.125*RGauss(), 1));
-            }
-
-            case 10: {
-                return v.col.dup.mul(V4.of(RGauss(), RGauss(), RGauss(), 1));
-            }
+    const template = new VertexArray();
+    for (let i of layer.mask) {
+        for (let m of matrix_templates[i]) {
+            template.push([M4.rm(m, dR).Cw, V4.ones]);
         }
     }
 
-    for (let v of floor_template) {
-        const p = M.ra(v.pos);
-        va.push([p, get_col(floorPal, v)]);
+    const geom = new Geometry(`${tg.name}Geom`, tg, new VertexArray());
+    if (offset > 0) {
+        geom.rm(M4.MovX(offset), M4.RotJ(-π/2));
+    } else {
+        geom.rm(M4.MovZ(offset));
     }
 
-    for (let v of ceil_template) {
-        const p = M.ra(v.pos);
-        va.push([p, get_col(ceilPal, v)]);
+    let batch_size = 16;
+    let i = 0;
+    const next = [tg.root];
+    while (next.length) {
+        const here = next.shift();
+        here.par = !(here.parent.par ?? true);
+
+        const M = M4.rm(dH, here.world_from_local);
+        for (let v of template) {
+            geom.va.push([
+                M.ra(v.pos),
+                tg.getCol(layer.palette, v, M, here.par)
+            ]);
+        }
+
+        next.push(...here.collect(ch => ch instanceof Chamber));
+        
+        if (++i > batch_size) {
+            i = 0; batch_size *= 2;
+            geom.write();
+            await new Promise(
+                resolve => setTimeout(resolve, 10)
+            );
+            yield;
+        }
     }
-};
 
-onAdd(trigroup_wt.root);
-trigroup_wt.orbit("", "bc", 2*Q, onAdd);
-
-const total_t0 = Date.now();
-for (let i = 0; i < depth; ++i) {
-    trigroup_wt.expand(1, onAdd);
-
-    const t = Date.now();
-    const dt = t-total_t0;
-    if (dt > 1000*bailout) {
-        Orveyl.Status.innerHTML += `Bailed out after ${dt}ms @ depth=${i}`;
-        break;
-    }
+    geom.write();
 }
 
-const geom = new Geometry("TriGroup", null, va);
-if (offset > 0) {
-    tri.geom.Case(
-        () => { geom.rm( M4.MovX(offset), M4.RotJ(+π/2) )},
-        () => { geom.rm( M4.MovX(offset), M4.RotJ(-π/2) ) },
-        () => { geom.rm( M4.MovX(offset), M4.RotJ(-Calc.Sgn(scale) * π/2) ) },
-    )();
-} else if (offset < 0) {
-    geom.rm(M4.MovZ(offset));
-}
+Tg.expand();
+const layers = [
+    {
+        mask: mask_idx("floor"),
+        radius: floorR,
+        height: floorZ,
+        palette: pal_value("floor"),
+    },
+    {
+        mask: mask_idx("ceil"),
+        radius: ceilR,
+        height: ceilZ,
+        palette: pal_value("ceil"),
+    },
+];
 
-Scene.Manager.add(geom).useIndex(0);
+for (let layer of layers) {
+    (async () => { for await (const _ of genstep(Tg, layer)); })();
+}

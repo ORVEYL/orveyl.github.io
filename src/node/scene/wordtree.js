@@ -70,9 +70,13 @@ export class WordTree extends Scene {
         this.sys = sys;
         Object.freeze(this.sys);
 
-        this.count = 0;
+        this.clear();
+    }
+
+    clear() {
+        this.root?.detach();
         this.root = new Chamber(this, "", "").label("");
-        ++this.count;
+        this.count = 1;
     }
 
     find(word) {
