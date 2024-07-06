@@ -122,6 +122,7 @@ geom.blend = 1;
     txt.setText(
         "      -- DEMOS --      ",
         "<TRIGROUP>-@#",
+        "  <FLORAL>-@#",
         "  <NEBULA>-@#",
         " <POPPIES>-@#",
         " <FRACTAL>-@#",
@@ -129,9 +130,10 @@ geom.blend = 1;
 
     const branches = txt.getBranches();
     branches[0].dest = "trigroup";
-    branches[1].dest = "nebula&dX=0.78&dZ=0.78";
-    branches[2].dest = "poppies";
-    branches[3].dest = "fractal";
+    branches[1].dest = "floral";
+    branches[2].dest = "nebula&dX=0.78&dZ=0.78";
+    branches[3].dest = "poppies";
+    branches[4].dest = "fractal";
 
     for (let br of branches) {
         const sphere = new Sphere("Sphere", br, 1/10);
