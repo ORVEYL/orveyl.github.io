@@ -130,6 +130,32 @@ Orveyl.Parameters.innerHTML = `<form>` + [
     ``,
     //`Sky Color: <input id="skyCol" type="color" value=#${CF}>`,
     `:: <input type="button" id="generate" value="Generate"> :: <input type="button" id="randomize" value="Randomize"> ::`,
+    ``,
+    `<details>
+        <summary>:: Help ::</summary>
+        <ul>
+            <li>BL / BR: Left / Right branch transformations</li>
+            <li>ΔL / ΔR: Left / Right branch scale factors</li>
+            <li>Inputs: Rotation (
+                <span style="color:#ff8">xy</span>,
+                <span style="color:#f8f">zx</span>,
+                <span style="color:#8ff">yz</span>
+            ) :: Translation (
+                <span style="color:#f88">x</span>,
+                <span style="color:#8f8">y</span>,
+                <span style="color:#88f">z</span>
+            )</li>
+            <br>
+            <li>Root Color: initial color of first node</li>
+            <li>L / R Color: tint color to apply to Left / Right branch, with weight</li>
+            <li>Leaf Color: color applied to final layer of branches</li>
+            <br>
+            <li>Mask: toggles Point, Line, and Triangle rendering</li>
+            <br>
+            <li>Generate: apply current parameters & regenerate tree</li>
+            <li>Randomize: randomize parameters & regenerate tree</li>
+        </ul>
+    </details>`
 ].join("<br>") + `</form>`;
 
 const generate = () => {
