@@ -18,7 +18,7 @@ import { WordTree } from "../node/scene/wordtree.js";
 import { VertexArray, IndexBuffer, Vertex } from "../gpubuffer.js";
 import { Orveyl } from "../orveyl.js";
 
-const size = Calc.Clamp(Orveyl.InitParams.get("size") ?? 0, 0, 4);
+const size = Calc.Clamp(0, 4)(Orveyl.InitParams.get("size") ?? 0);
 
 const [P,Q,R] = [3,7,2];
 const sys = new KB.System(

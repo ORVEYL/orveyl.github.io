@@ -4,13 +4,14 @@ import { Scene } from "../scene.js";
 import { Geometry } from "./geometry.js";
 import { VertexArray } from "../../gpubuffer.js";
 import { V4, M4 } from "../../math/vector.js";
+import { SI } from "../../math/si.js";
 
 export class Gizmo extends Scene {
 
     static DefaultVertexArray = undefined;
     static DefaultIndexArray = undefined;
 
-    static InitDefaults(ds=0.1) {
+    static InitDefaults(ds=SI.m_to_au(SI.Ref.length_m.human_height)) {
         const [w, x,y,z] = [V4.w, M4.MovX(ds).Cw, M4.MovY(ds).Cw, M4.MovZ(ds).Cw];
 
         Gizmo.DefaultVertexArray = new VertexArray().push(

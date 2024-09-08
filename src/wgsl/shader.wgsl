@@ -23,9 +23,10 @@ struct uTimeStruct {
 @group(0) @binding(2) var<uniform> uTime: uTimeStruct;
 @group(0) @binding(3) var<uniform> uInstMats: array<mat4x4f, 1024>;
 @group(0) @binding(4) var<uniform> uSky: array<vec4f, 16>;
+@group(0) @binding(5) var<uniform> uTint: vec4f;
 
-@group(0) @binding(5) var uTexSampler : sampler;
-@group(0) @binding(6) var uTexView: texture_2d<f32>;
+@group(0) @binding(6) var uTexSampler : sampler;
+@group(0) @binding(7) var uTexView: texture_2d<f32>;
 
 @group(1) @binding(0) var gPos: texture_2d<f32>;
 @group(1) @binding(1) var gCol: texture_2d<f32>;
@@ -357,7 +358,7 @@ fn vertGBuf(
 
     let worldPos = uMat.WorldFromLocal * /*uInstMats[in.iIdx]*/ in.vPos;
     out.vPos = worldPos / worldPos.w;
-    out.vCol = in.vCol;
+    out.vCol = uTint * in.vCol;
     out.vTex = in.vTex;
     //out.vMat = in.vMat;
 
@@ -412,7 +413,7 @@ fn vertGBufSplat(
 
     let viewPos = uMat.ViewFromWorld * worldPos;
 
-    let size = 1.0/32.0;//0.0125;//in.vCol.a;
+    let size = 1.0/256.0;//0.0125;//in.vCol.a;
     let splatPos = size * SplatQuadPos[vIdx];
 
     // let B = Mov(vec3f(0, -splatPos));
@@ -610,8 +611,8 @@ fn skyColor(fPos : vec4f) -> vec4f {
     dir /= sqrt(Mip(dir, dir));
     let ideal = normalize(eye.xyz + dir.xyz);
     let idealcol = 0.5*ideal+0.5;
-    if (skyMode == 1) { return vec4f(idealcol, 1); }
-    if (skyMode == 2) { return vec4f(fract(atanh(ideal)/1.0612749196484927), 1.0); }
+    if (skyMode == 1) { return vec4f(idealcol, 1)*uSky[0x0]; }
+    if (skyMode == 2) { return vec4f(fract(atanh(ideal)/asinh(1)), 1.0)*uSky[0x0]; }
     if (skyMode == 3) {
         return vec4f(
             vec3(0)
@@ -625,7 +626,7 @@ fn skyColor(fPos : vec4f) -> vec4f {
             )
             ,
             1
-        );
+        )*uSky[0x0];
     }
 
     if (skyMode == 4) {

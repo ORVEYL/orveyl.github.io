@@ -283,6 +283,9 @@ export class V4 extends Vector {
         // );
     }
 
+    la(M) { return this.copy(M.ra(this)); }
+    ra(M) { return this.copy(M.la(this)); }
+
     ips (...vs) { return vs.map(this.ip, this); }
     ops (...vs) { return vs.map(this.op, this); }
     xps (...vs) { return vs.map(this.xp, this); }

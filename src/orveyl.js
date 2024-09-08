@@ -3,6 +3,7 @@
 import * as Calc from "./math/calc.js";
 import { π, Geom, Rand } from "./math/calc.js";
 import { V4, B4, M4 } from "./math/vector.js";
+import { SI } from "./math/si.js";
 
 import {
     F32Buffer, Vertex, VertexBuffer,
@@ -292,6 +293,12 @@ export class Orveyl {
             ]),
         ).write();
 
+        Orveyl.GPUBuffers.Tint = new F32Buffer(
+            Orveyl.Device, "Orveyl.GPUBuffers.Tint",
+            GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            new Float32Array([1,1,1,1]),
+        ).write();
+
         Orveyl.GPUBuffers.InstanceMatrices = new F32Buffer(
             Orveyl.Device, "Orveyl.GPUBuffers.InstanceMatrices",
             GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -347,14 +354,20 @@ export class Orveyl {
                     buffer: { type: "uniform" },
                 },
 
-                { // texture sampler
+                { // geom tint color params
                     binding: 5,
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
+                    buffer: { type: "uniform" },
+                },
+
+                { // texture sampler
+                    binding: 6,
                     visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
                     sampler: { type: "non-filtering" }
                 },
 
                 { // texture view
-                    binding: 6,
+                    binding: 7,
                     visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
                     texture: { sampleType: "unfilterable-float" }
                 },
@@ -370,8 +383,9 @@ export class Orveyl {
                 { binding: 2, resource: { buffer: Orveyl.GPUBuffers.Time.gpubuf } },
                 { binding: 3, resource: { buffer: Orveyl.GPUBuffers.InstanceMatrices.gpubuf } },
                 { binding: 4, resource: { buffer: Orveyl.GPUBuffers.Sky.gpubuf } },
-                { binding: 5, resource: Orveyl.Textures.Samplers[0] },
-                { binding: 6, resource: Orveyl.Textures.Views[0] },
+                { binding: 5, resource: { buffer: Orveyl.GPUBuffers.Tint.gpubuf } },
+                { binding: 6, resource: Orveyl.Textures.Samplers[0] },
+                { binding: 7, resource: Orveyl.Textures.Views[0] },
             ],
         });
 
@@ -938,6 +952,8 @@ export class Orveyl {
         if (input.tick("analogLc")) ds.scFlux(3.0);
         if (Geom.Sig > 0) ds.scFlux(-1);
 
+        //ds.scFlux(SI.m_to_au(SI.Ref.speed_mps.highway));
+
         Controller.Manager.active?.parent?.matrix?.rm(ds.exp());
     }
 
@@ -983,7 +999,7 @@ export class Orveyl {
     }
 
     static SetSkyComplex(Palette, Iters, Ms, As, Bs, Cs, Fs, Gs, Es) {
-        Iters = Calc.Clamp(Iters ?? 32, 0, 256);
+        Iters = Calc.Clamp(0, 256)(Iters ?? 32);
         Fs ??= [0,0, 0,0, 1,0, 0,0, 0,0, 0,0, 0,0, 0,0];
         Gs ??= [1,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0];
         Ms ??= [1,0, 0,0, 0,0, 1,0];
@@ -1143,6 +1159,8 @@ export class Orveyl {
 
             Orveyl.GPUBuffers.Matrices.set(geom.world_from_local, 2*16);
             Orveyl.GPUBuffers.Matrices.write();
+
+            Orveyl.GPUBuffers.Tint.set(geom.tint ?? [1,1,1,1]).write();
 
             if (geom.mode == 0) {
                 pass.draw(6, geom.vb.count);

@@ -175,9 +175,9 @@ class TriGroup extends WordTree {
 };
 
 const [P,Q,R] = [
-    Calc.Clamp(Orveyl.InitParams.get("P") ?? 5, 2, 32),
-    Calc.Clamp(Orveyl.InitParams.get("Q") ?? 4, 2, 32),
-    Calc.Clamp(Orveyl.InitParams.get("R") ?? 2, 2, 32),
+    Calc.Clamp(2, 32)(Orveyl.InitParams.get("P") ?? 5),
+    Calc.Clamp(2, 32)(Orveyl.InitParams.get("Q") ?? 4),
+    Calc.Clamp(2, 32)(Orveyl.InitParams.get("R") ?? 2),
 ];
 
 const floorR = Orveyl.InitParams.get("floorR") ?? 0;
