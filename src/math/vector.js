@@ -58,8 +58,16 @@ export class Complex extends Vector {
     setIm(    im) {               this[1] = im; return this; }
 
     static of(re, im) { return super.of(re, im); }
-    static re(s=1) { return Complex.of(1, 0); } static get re() { return Complex.re(); }
-    static im(s=1) { return Complex.of(0, 1); } static get im() { return Complex.im(); }
+
+    static re(s=1) { return Complex.of(s, 0); }
+    static im(s=1) { return Complex.of(0, s); }
+
+    static polar(abs, arg=0) {
+        return Complex.of(
+            ...Geom.Sph.Exp(arg),
+        ).sc(abs);
+    }
+
     static get zero() { return Complex.of(0, 0); }
     static get ones() { return Complex.of(1, 1); }
 
@@ -68,13 +76,12 @@ export class Complex extends Vector {
 
     static conj(z) { return Complex.of(z.re, -z.im); }
     static quad(z) { return z.re*z.re + z.im*z.im; }
-    static abs (z) { return Sqrt(Complex.abs(z)); }
-    static arg (z) { return Geom.Sph.TanInv(z.im, z.re); }
+    static abs (z) { return Sqrt(Complex.quad(z)); }
+    static arg (z) { return Geom.Sph.TanInv(z.re, z.im); }
 
     static exp(z) {
         return Complex.of(
-            Geom.Sph.Cos(z.im),
-            Geom.Sph.Sin(z.im),
+            ...Geom.Sph.Exp(z.im),
         ).sc(Exp(z.re));
     }
 
@@ -97,7 +104,6 @@ export class Complex extends Vector {
     }
 
     static div(L, R) {
-        const quadR = Complex.quad(R);
         return Complex.of(
             L.re*R.re + L.im*R.im,
             L.im*R.re - L.re*R.im,
@@ -119,11 +125,9 @@ export class Complex extends Vector {
     get arg () { return Complex.arg(this); }
 
     get exp() {
-        const s = Exp(this.re);
         return this.set(
-            s*Geom.Sph.Cos(this.im),
-            s*Geom.Sph.Sin(this.im),
-        );
+            ...Geom.Sph.Exp(this.im),
+        ).sc(Exp(this.re));
     }
 
     get log() {

@@ -987,37 +987,25 @@ export class Orveyl {
         Fs ??= [0,0, 0,0, 1,0, 0,0, 0,0, 0,0, 0,0, 0,0];
         Gs ??= [1,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0];
         Ms ??= [1,0, 0,0, 0,0, 1,0];
+
         As ??= [0,0, 1,0];
         Bs ??= [0,0, 1,0];
         Cs ??= [0,0, 1,0];
+        const Ds = [0,0, 0,0];
 
         Es ??= [0,0, 4];
         
         Orveyl.GPUBuffers.Sky.set([
-            ...Fs, ...Gs,
-
-            ...Ms, //////
+            ...Fs, ///Fs,
+            ///Fs, ///Fs,
+            ...Gs, ///Gs,
+            ///Gs, ///Gs,
+            ...Ms, ///Ms,
             ...As, ...Bs,
-            ...Cs, 0,0,0,0,
-            Es[0],Es[1],0,0, Es[2], Calc.Floor(Palette), Iters, Orveyl.SkyMode.Complex,
+            ...Cs, ...Ds,
+            Es[0],Es[1],0,0,
+            Es[2], Calc.Floor(Palette), Iters, Orveyl.SkyMode.Complex,
         ]).write();
-    }
-
-    static SetSkyNewton(Palette, Iters, Ms, Fs, Es) {
-        Orveyl.SetSkyComplex(
-            Palette, Iters, Ms, null, [1,0, -1,0], [0,0, 0,0],
-            Fs,
-            [
-                  Fs[2],    Fs[3],
-                2*Fs[4],  2*Fs[5],
-                3*Fs[6],  3*Fs[7],
-                4*Fs[8],  4*Fs[9],
-                5*Fs[10], 5*Fs[11],
-                6*Fs[12], 6*Fs[13],
-                7*Fs[14], 7*Fs[15],
-                0, 0,
-            ], Es,
-        );
     }
 
     ////////////////////////////////////////////////////////////////////////////////

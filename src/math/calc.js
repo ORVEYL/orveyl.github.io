@@ -350,7 +350,7 @@ export const Geom = new class {
                 "Sph", +1,
                 Math.cos,  Math.acos,
                 Math.sin,  Math.asin,
-                Math.tan,  (x,y) => (y === undefined) ? Math.atan2(y,x) : Math.atan(x),
+                Math.tan,  (x,y) => (y === undefined) ? Math.atan(x) : Math.atan2(y,x),
             )),
             Object.freeze(new GeomInfo(
                 "Hyp", -1,

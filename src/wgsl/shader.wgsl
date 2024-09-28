@@ -516,7 +516,7 @@ fn julia_dist(z0 : vec2f, c : vec2f) -> f32 {
 
 }
 
-fn julia(z0 : vec2f, c0 : vec2f) -> vec3f {
+fn fractal(p :vec2f) -> vec3f {
     let T = uTime.T * TpS/8;
     let ct = cos(T);
     let st = sin(T);
@@ -535,15 +535,15 @@ fn julia(z0 : vec2f, c0 : vec2f) -> vec3f {
     let B0 = uSky[0xB].xy; let B1 = uSky[0xB].zw;
     let C0 = uSky[0xC].xy; let C1 = uSky[0xC].zw;
 
-    var z = A0+Cmul(A1, z0);
-    var prev_abs = Cabs(z);
-    var prev_arg = Carg(z);
-
-    var c = C0+Cmul(C1, c0);
+    var z = A0 + Cmul(A1, p);
+    var c = C0 + Cmul(C1, p);
 
     let R = abs(uSky[0xF].x); let SR = sign(uSky[0xF].x);
     let Eabs = abs(uSky[0xE].x); let SEabs = sign(uSky[0xE].x);
     let Earg = abs(uSky[0xE].y); let SEarg = sign(uSky[0xE].y);
+
+    var prev_abs = Cabs(z);
+    var prev_arg = Carg(z);
 
     let N = i32(uSky[0xF].z);
     var it : i32;
@@ -635,21 +635,64 @@ fn skyColor(fPos : vec4f) -> vec4f {
             uSky[0x9].xy, uSky[0x9].zw,
         );
 
-        let jz = julia(z, z);
-        let r = Cabs(jz.xy); let lr = log(r);
-        let t = Carg(jz.xy);
+        let fz = fractal(z);
+        let r = Cabs(fz.xy); let lr = log(r);
+        let t = -Carg(fz.xy);
 
+        var col = vec3f(0);
         switch (i32(uSky[0xF].y)) {
-            default: { return vec4f(fract(jz.xy), 0.5, 1);  }
-            case 1: { return vec4f(jz.zzz, 1); }
-            case -1: { return vec4f(1-jz.zzz, 1); }
+            default: { // Grid
+                col = vec3f(fract(fz.xy), 0.5);
+            }
 
-            case 2: { return vec4f(jz.zzz*idealcol, 1); }
-            case -2: { return vec4f((1-jz.zzz)*idealcol, 1); }
+            case 1: { // Esc
+                col = fz.zzz;
+            }
+            case -1: { // RevEsc
+                col = 1-fz.zzz;
+            }
 
-            case 3: { return vec4f(0.5*vec3f(cos(t), sin(t), 0)+0.5, 1); }
-            case 4: { return vec4f(Crgb(jz.xy), 1); }
+            case 2: { // IdealEsc
+                col = fz.zzz * idealcol;
+            }
+            case -2: { // IdealRevEsc
+                col = (1-fz.zzz) * idealcol;
+            }
+
+            case 3: { // Abs
+                col = 0.5*vec3f(-tanh(lr))+0.5;
+            }
+            case -3: { // AbsCos
+                col = (0.5*vec3f(-tanh(lr))+0.5) * (0.5*vec3f(cos(PI*lr))+0.5);
+            }
+
+            case 4: { // Arg
+                col = 0.5*vec3f(cos(t), sin(t), 0)+0.5;
+                col = mix(col, vec3f(0,0,1), 0.5*tanh(lr/6-5)+0.5);
+                col *= 0.5*-tanh(lr/6-4.7)+0.5;
+            }
+            case -4: { // ArgCos
+                col = 0.5*vec3f(cos(t))+0.5;
+                col *= 0.5*-tanh(lr/6-4.7)+0.5;
+            }
+
+            case 5: { // AbsArg
+                col = 0.5*vec3f(-tanh(lr))+0.5;
+                col*= 0.5*vec3f(cos(t), sin(t), 0)+0.5;
+            }
+
+            case -5: { // AbsCosArg
+                col = 0.5*vec3f(-tanh(lr))+0.5;
+                col*= 0.5*vec3f(cos(PI*lr))+0.5;
+                col*= 0.5*vec3f(cos(t), sin(t), 0)+0.5;
+            }
+
+            case 6: { // Plot
+                col = Crgb(fz.xy);
+            }
         }
+
+        return vec4f(col, 1);
     }
 
     return vec4f(0,0,0, 1);
