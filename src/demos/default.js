@@ -5,90 +5,140 @@ import { Geometry } from "../node/scene/geometry.js";
 import { VertexArray } from "../gpubuffer.js";
 import * as Calc from "../math/calc.js";
 import { π, Rand } from "../math/calc.js";
-import { V4, M4 } from "../math/vector.js";
+import { V4, M4, Complex } from "../math/vector.js";
+
+import * as KB from "../math/knuthbendix.js";
+import { WordTree } from "../node/scene/wordtree.js";
 
 import { Text } from "../node/scene/text.js";
-import { Gizmo } from "../node/scene/gizmo.js";
 import { Ticker } from "../node/component/ticker.js"
 import { Sphere } from "../node/scene/shape.js";
-import { Controller } from "../node/component/controller.js";
+
+Orveyl.Menu.innerHTML = [
+`<q>Out of nothing, I have created a strange new universe.</q> -- János Bolyai`,
+``,
+`orveyl.js is a 3D Non-Euclidean WebGPU Renderer,`,
+`and work-in-progress hobby project of adc.`,
+``,
+
+`<details>
+    <summary>:: Controls ::</summary>
+    <ul>
+        <table>
+            <tr>
+                <th>Action
+                <th>Keyboard
+                <th>Gamepad
+            <tr style="color:#f88">
+                <td>Move Forward / Backward
+                <td>W / S
+                <td>Left Analog Stick
+            <tr style="color:#8f8">
+                <td>Move Left / Right
+                <td>A / D
+                <td>Left Analog Stick
+            <tr style="color:#88f">
+                <td>Move Up / Down
+                <td>R / F
+                <td>Left / Right Trigger
+            <tr style="color:#ff8">
+                <td>Rotate Left / Right
+                <td>← / →
+                <td>Right Analog Stick
+            <tr style="color:#f8f">
+                <td>Rotate Up / Down
+                <td>↑ / ↓
+                <td>Right Analog Stick
+            <tr style="color:#8ff">
+                <td>Roll CCW / CW
+                <td>Q / E
+                <td>L / R Shoulder
+            <tr>
+                <td>Place Marker
+                <td>Space
+            <tr>
+                <td>Remove Marker
+                <td>Shift + Space
+            <tr>
+                <td>Teleport to<br>Scene Origin
+                <td>Home
+            <tr>
+                <td>Teleport to<br>Last Marker
+                <td>Shift + Home
+            <tr>
+                <td>Download Canvas as PNG
+                <td>Backslash \\
+            <tr>
+                <td>Toggle "Immersive Mode"
+                <td>Alt + Enter
+        </table>
+    </ul>
+</details>`,
+].join("<br>");
 
 export const DefaultDemo = new Scene("DefaultDemo");
 
-const [
-    cw,
-    cxp, cyp, czp, cap,
-    cxn, cyn, czn, can,
-] = [
-    V4.of(0.5, 0.5, 0.5, 1),
-
-    V4.of(1, 0.5, 0.5, 1),
-    V4.of(0.5, 1, 0.5, 1),
-    V4.of(0.5, 0.5, 1, 1),
-    V4.of(1, 1, 1, 1),
-
-    V4.of(0, 0.5, 0.5, 1),
-    V4.of(0.5, 0, 0.5, 1),
-    V4.of(0.5, 0.5, 0, 1),
-    V4.of(0, 0, 0, 1),
-].map(c => c.sc(1/2));
-
-const va = new VertexArray().push(
-    [V4.w, cw], [V4.of(+1,0,0,1), cxp],
-    [V4.w, cw], [V4.of(-1,0,0,1), cxn],
-    [V4.w, cw], [V4.of(0,+1,0,1), cyp],
-    [V4.w, cw], [V4.of(0,-1,0,1), cyn],
-    [V4.w, cw], [V4.of(0,0,+1,1), czp],
-    [V4.w, cw], [V4.of(0,0,-1,1), czn],
-    [V4.w, cw], [V4.of(+1,+1,+1,1).scXYZ(Calc.InvSqrt(3)), cap],
-    [V4.w, cw], [V4.of(-1,-1,-1,1).scXYZ(Calc.InvSqrt(3)), can],
-);
-
-const [
-    ExJ, ExK,
-] = [
-    M4.Cs(V4.x, V4.z, V4.y, V4.w),
-    M4.Cs(V4.z, V4.y, V4.x, V4.w),
-];
-
 const ds = Calc.Geom.Hyp.CosInv(Calc.ϕ);
-const [
-    DXp, DYp, DZp,
-    DXn, DYn, DZn,
-] = [
-    M4.lm(ExK, M4.MovX(+ds)),
-    M4.lm(ExJ, M4.MovY(+ds)),
-    M4.lm(     M4.MovZ(+ds)),
-    M4.lm(ExK, M4.MovX(-ds)),
-    M4.lm(ExJ, M4.MovY(-ds)),
-    M4.lm(     M4.MovZ(-ds)),
-];
 
-const Ms = [
-    M4.id, ExJ, ExK,
-    DXp, DYp, DZp,
-    DXn, DYn, DZn,
-];
+function PentaNet() {
+    const sys = new KB.System(
+        ["0", "1", "2", "3", "4"],
+        ["0", "1", "2", "3", "4"],
+        KB.Rule.Array(
+            ["00"], ["11"], ["22"], ["33"], ["44"],
+            ["01".repeat(2)],
+            ["12".repeat(2)],
+            ["23".repeat(2)],
+            ["34".repeat(2)],
+            ["04".repeat(2)],
+        )
+    ).complete();
 
-const [prev, curr] = [V4.new, V4.of(1,0,0,1)];
-
-const N = 512;
-for (let i=1; i<=N; ++i) {
-
-    const t = i*(Calc.τ/N);
-    const [c,s] = Calc.Geom.Sph.Exp(t);
-
-    prev.copy(curr); curr.setXYZ(c, s, 0);
+    const dX = M4.MovX(ds);
+    const di = M4.RotI(π/2);
+    const T = M4.lm(di, dX).T;
+    sys.repr["0"] = M4.Refl(M4.lm().Rx);
+    sys.repr["1"] = M4.Refl(M4.lm(T).Rx);
+    sys.repr["2"] = M4.Refl(M4.lm(T,T).Rx);
+    sys.repr["3"] = M4.Refl(M4.lm(T,T,T).Rx);
+    sys.repr["4"] = M4.Refl(M4.lm(T,T,T,T).Rx);
     
-    for (let M of Ms) {
-        const cc = M.ra(curr.dup.add([1,1,1,0]).sc(1/8)).setW(1);
-        va.push([M.ra(prev), cc], [M.ra(curr), cc]);
-    }
-}
+    const eps = 1e-2;
+    const P = M4.Transport(eps, eps, 0);
+    const Z = M4.MovZ(-16);
+    const cc = V4.ones.scXYZ(1/6);
+    const va = new VertexArray();
+    const template = new VertexArray().push(
+        [P.Cw, cc], [P.dup.rm(Z).Cw, V4.w], [P.Cw, cc], [P.lm(T).Cw, cc],
+        [P.Cw, cc], [P.dup.rm(Z).Cw, V4.w], [P.Cw, cc], [P.lm(T).Cw, cc],
+        [P.Cw, cc], [P.dup.rm(Z).Cw, V4.w], [P.Cw, cc], [P.lm(T).Cw, cc],
+        [P.Cw, cc], [P.dup.rm(Z).Cw, V4.w], [P.Cw, cc], [P.lm(T).Cw, cc],
+        [P.Cw, cc], [P.dup.rm(Z).Cw, V4.w], [P.Cw, cc], [P.lm(T).Cw, cc],
+    );
 
-const geom = new Geometry("Geom", DefaultDemo, va);
-geom.mode = 1;
-geom.blend = 1;
+    const wt = new WordTree("WordTree240314", sys, DefaultDemo);
+    WordTree.Verbose = true;
+    wt.onPopulate = async self => {
+        const onAdd = here => {
+            const M = here.world_from_local;
+
+            let i = 0;
+            for (let v of template) {
+                va.push([M.ra(v.pos), v.col]);
+            }
+        };
+
+        onAdd(wt.root);
+        wt.expand(6, onAdd);
+
+        let sm = new Geometry("Mesh", wt, va);
+        sm.mode = 1; sm.blend = 1;
+        sm.lm(M4.RotJ(-π/2), M4.MovX(ds));
+    }
+
+    return wt;
+}
+const wt = PentaNet().populate();
 
 {
     const txt = new Text("OrveylText", DefaultDemo);
@@ -98,7 +148,7 @@ geom.blend = 1;
 }
 
 {
-    const txt = new Text("TutorialText", DefaultDemo);
+    const txt = new Text("ADC", DefaultDemo);
     txt.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(+ds/3), M4.MovX(ds));
     txt.setSize(1, 1, 1/16).setOffset(-1);
     txt.setText("ADC").commit();
@@ -117,23 +167,23 @@ geom.blend = 1;
 
 {
     const txt = new Text("DemoListText", DefaultDemo);
-    txt.lm(M4.RotI(-π/2), M4.MovZ(-ds));
-    txt.setSize(1, 1, 1/16).setOffset(-11).setSpacing(3);
+    txt.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(-ds), M4.MovX(ds));
+    txt.setSize(1, 1, 1/16).setOffset(-11).setSpacing(2.83);
     txt.setText(
         "      -- DEMOS --      ",
         "<TRIGROUP>-@#",
-        "  <FLORAL>-@#",
-        "  <NEBULA>-@#",
-        " <POPPIES>-@#",
         " <FRACTAL>-@#",
+        "  <FLORAL>-@#",
+        " <POPPIES>-@#",
+        "  <NEBULA>-@#",
     ).commit();
 
     const branches = txt.getBranches();
     branches[0].dest = "trigroup";
-    branches[1].dest = "floral";
-    branches[2].dest = "nebula&dX=0.78&dZ=0.78";
+    branches[1].dest = "fractal";
+    branches[2].dest = "floral";
     branches[3].dest = "poppies";
-    branches[4].dest = "fractal";
+    branches[4].dest = "nebula";
 
     for (let br of branches) {
         const sphere = new Sphere("Sphere", br, 1/10);
@@ -177,6 +227,62 @@ geom.blend = 1;
 
         }).play();
     }
+}
+
+{
+    const Rs = [M4.RotI, M4.RotJ, M4.RotK];
+    const C = Rand.Gauss(0.8)(0.1);
+    for (let n = 0; n < 3*8; ++n) {
+        const star_va = new VertexArray();
+        for (let i = 0; i < 256; ++i) {
+            const [θ,φ] = [π*Rand.Sign(), Math.asin(Rand.Sign())];
+            star_va.push(
+                [
+                    M4.rm(M4.Euler(θ,φ), M4.MovX(1+4*Rand.Sqrt())).Cw,
+                    V4.of(C(), C(), C(), 1),
+                ]);
+        }
+
+        const stars = new Geometry(`Stars${n}`, DefaultDemo, star_va);
+        stars.mode = 0; stars.blend = 1;
+
+        const anim = new Ticker("Anim", stars, self => {
+            self.parent.matrix.copy(Rs[n%3](self.t));
+        }).play(1/60 * Rand.Sign());
+    }
+
+    const f2reφ = π/2*Rand.Sign();
+    const f2imφ = π/2*Rand.Sign();
+    const f7absA = 0.2*Rand.Choice(+1, -1)();
+    const f7argω = Rand.Choice(+1, -1)();
+    const lz = Calc.Max(0);
+
+    const sky_anim = new Ticker("SkyAnim", DefaultDemo, self => {
+        Orveyl.SetSkyComplex(
+            -120, 6,
+            [
+                1,0, 0,0,
+                //...Complex.polar(1, self.t), 0,0,
+                0,0, 1,0,
+            ],
+            null, null, null,
+            [
+                0,0,
+                0,0,
+                0.7*Math.sin(self.t/Calc.ϕ + f2reφ), 0.7*Math.sin(self.t/Calc.δs + f2imφ),
+                0,0,
+                ...Complex.polar(Math.sin(self.t*Calc.Rt3/3), 2*self.t),
+                0,0,
+                0,0, ...Complex.polar(1+f7absA*Math.sin(self.t/Calc.Rt2), f7argω*self.t)
+            ],
+            null,
+            [
+                0.01*lz(Math.sin(self.t+f2reφ)+0.5),
+                0.01*lz(Math.sin(self.t-f2imφ)+0.5),
+                3+2*Math.cos(self.t/2)
+            ],
+        );
+    }).play(1/10)
 }
 
 Scene.Manager.add(DefaultDemo).useIndex(0);

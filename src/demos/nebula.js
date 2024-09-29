@@ -1,30 +1,40 @@
 // adc :: nebula.js
 
-import * as Calc from "../math/calc.js";
 import {
-    Rand,
-    π,τ,ϕ,
-    Geom,
+    Rand, π
 } from "../math/calc.js";
-import { V4, B4, M4 } from "../math/vector.js";
+import { V4, M4 } from "../math/vector.js";
 
 import { Scene } from "../node/scene.js";
-import { Camera } from "../node/scene/camera.js";
 import { Geometry } from "../node/scene/geometry.js";
-import { Ticker } from "../node/component/ticker.js";
 
 import * as KB from "../math/knuthbendix.js";
 import { WordTree } from "../node/scene/wordtree.js";
-import { VertexArray, IndexBuffer } from "../gpubuffer.js";
+import { VertexArray } from "../gpubuffer.js";
 import { Orveyl } from "../orveyl.js";
 
 const [P,Q,R] = [3, 4, 2];
-const ds = 1.25;
 const [dX, dZ] = [
-    Orveyl.InitParams.get("dX") ?? ds*Rand.Sign(),
-    Orveyl.InitParams.get("dZ") ?? ds*Rand.Sign(),
+    Orveyl.InitParams.get("dX") ?? 0.78,
+    Orveyl.InitParams.get("dZ") ?? 0.78,
 ];
-Orveyl.Status.innerHTML = `?demo=nebula&dX=${dX}&dZ=${dZ}`;
+
+Orveyl.Menu.innerHTML = [
+    `dX: <input id="dX" type="number" step=${0.1} style="width:5em" value="${dX}">`,
+    `dZ: <input id="dZ" type="number" step=${0.1} style="width:5em" value="${dZ}">`,
+    `:: <input type="button" id="generate" value="Generate"> :: <input type="button" id="randomize" value="Randomize">`,
+].join("<br>");
+
+document.getElementById("generate").onclick = () => {
+    const newdX = document.getElementById("dX").value;
+    const newdZ = document.getElementById("dZ").value;
+    window.location.assign(`?demo=nebula&dX=${newdX}&dZ=${newdZ}`);
+};
+
+document.getElementById("randomize").onclick = () => {
+    const ds = 1.25;
+    window.location.assign(`?demo=nebula&dX=${ds*Rand.Sign()}&dZ=${ds*Rand.Sign()}`);
+};
 
 const RR = M4.Rot(Rand.Sign(), Rand.Sign(), Rand.Sign(), π);
 

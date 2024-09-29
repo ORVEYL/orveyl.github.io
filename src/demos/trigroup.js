@@ -265,7 +265,7 @@ const pal_default = {
 };
 const pal_value = name => Orveyl.InitParams.get(`${name}Pal`) ?? pal_default[name];
 
-Orveyl.Parameters.innerHTML = `<form>` + [
+Orveyl.Menu.innerHTML = `<form>` + [
     [
         `(P,Q,R):`,
         `<input id="P" ${pqr_input} name="P" value="${P}">`,

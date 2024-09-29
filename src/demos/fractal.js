@@ -65,6 +65,12 @@ class Polynomial {
         return cs;
     }
 
+    rand(R) {
+        R ??= () => Complex.exp(Complex.im(Calc.π*Calc.Rand.Sign())).sc(Calc.Rand.Unit());
+        this.c.map(c => c.copy(R()));
+        return this;
+    } 
+
     setDerivative(src) {
         this.c[0].copy(src.c[1]);
         this.c[1].copy(src.c[2]).sc(2);
@@ -99,6 +105,8 @@ class Polynomial {
     }
 }
 
+let preset = 0
+
 let pal = 5;
 let iter = 8;
 
@@ -108,7 +116,7 @@ const b = Polynomial.of("b", 0,0, 1,0);
 const c = Polynomial.of("c", 0,0, 1,0);
 const f = Polynomial.of("f", 0,0, 1,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0);
 const g = Polynomial.of("g", 1,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0);
-const [e0, e1, e2] = [[0], [0], [0]];
+const [e0, e1, e2] = [[0], [0], [4]];
 
 const reset_params = () => {
     m.reset();
@@ -126,34 +134,48 @@ const read_url = () => {
         pal = Ps.p ?? 2;
         iter = Ps.i ?? 16;
 
-        m.c[0].set(Ps.Ms[0], Ps.Ms[1]); m.c[1].set(Ps.Ms[2], Ps.Ms[3]);
-        m.c[2].set(Ps.Ms[4], Ps.Ms[5]); m.c[3].set(Ps.Ms[6], Ps.Ms[7]);
+        if (Ps.Ms) {
+            m.c[0].set(Ps.Ms[0], Ps.Ms[1]); m.c[1].set(Ps.Ms[2], Ps.Ms[3]);
+            m.c[2].set(Ps.Ms[4], Ps.Ms[5]); m.c[3].set(Ps.Ms[6], Ps.Ms[7]);
+        }
 
-        a.c[0].set(Ps.As[0], Ps.As[1]); a.c[1].set(Ps.As[2], Ps.As[3]);
-        b.c[0].set(Ps.Bs[0], Ps.Bs[1]); b.c[1].set(Ps.Bs[2], Ps.Bs[3]);
-        c.c[0].set(Ps.Cs[0], Ps.Cs[1]); c.c[1].set(Ps.Cs[2], Ps.Cs[3]);
+        if (Ps.As) {
+            a.c[0].set(Ps.As[0], Ps.As[1]); a.c[1].set(Ps.As[2], Ps.As[3]);
+        }
+        if (Ps.Bs) {
+            b.c[0].set(Ps.Bs[0], Ps.Bs[1]); b.c[1].set(Ps.Bs[2], Ps.Bs[3]);
+        }
+        if (Ps.Cs) {
+            c.c[0].set(Ps.Cs[0], Ps.Cs[1]); c.c[1].set(Ps.Cs[2], Ps.Cs[3]);
+        }
 
-        f.c[0].set(Ps.Fs[ 0], Ps.Fs[ 1]);
-        f.c[1].set(Ps.Fs[ 2], Ps.Fs[ 3]);
-        f.c[2].set(Ps.Fs[ 4], Ps.Fs[ 5]);
-        f.c[3].set(Ps.Fs[ 6], Ps.Fs[ 7]);
-        f.c[4].set(Ps.Fs[ 8], Ps.Fs[ 9]);
-        f.c[5].set(Ps.Fs[10], Ps.Fs[11]);
-        f.c[6].set(Ps.Fs[12], Ps.Fs[13]);
-        f.c[7].set(Ps.Fs[14], Ps.Fs[15]);
+        if (Ps.Fs) {
+            f.c[0].set(Ps.Fs[ 0], Ps.Fs[ 1]);
+            f.c[1].set(Ps.Fs[ 2], Ps.Fs[ 3]);
+            f.c[2].set(Ps.Fs[ 4], Ps.Fs[ 5]);
+            f.c[3].set(Ps.Fs[ 6], Ps.Fs[ 7]);
+            f.c[4].set(Ps.Fs[ 8], Ps.Fs[ 9]);
+            f.c[5].set(Ps.Fs[10], Ps.Fs[11]);
+            f.c[6].set(Ps.Fs[12], Ps.Fs[13]);
+            f.c[7].set(Ps.Fs[14], Ps.Fs[15]);
+        }
 
-        g.c[0].set(Ps.Gs[ 0], Ps.Gs[ 1]);
-        g.c[1].set(Ps.Gs[ 2], Ps.Gs[ 3]);
-        g.c[2].set(Ps.Gs[ 4], Ps.Gs[ 5]);
-        g.c[3].set(Ps.Gs[ 6], Ps.Gs[ 7]);
-        g.c[4].set(Ps.Gs[ 8], Ps.Gs[ 9]);
-        g.c[5].set(Ps.Gs[10], Ps.Gs[11]);
-        g.c[6].set(Ps.Gs[12], Ps.Gs[13]);
-        g.c[7].set(Ps.Gs[14], Ps.Gs[15]);
+        if (Ps.Gs) {
+            g.c[0].set(Ps.Gs[ 0], Ps.Gs[ 1]);
+            g.c[1].set(Ps.Gs[ 2], Ps.Gs[ 3]);
+            g.c[2].set(Ps.Gs[ 4], Ps.Gs[ 5]);
+            g.c[3].set(Ps.Gs[ 6], Ps.Gs[ 7]);
+            g.c[4].set(Ps.Gs[ 8], Ps.Gs[ 9]);
+            g.c[5].set(Ps.Gs[10], Ps.Gs[11]);
+            g.c[6].set(Ps.Gs[12], Ps.Gs[13]);
+            g.c[7].set(Ps.Gs[14], Ps.Gs[15]);
+        }
 
-        e0[0] = Ps.Es[0];
-        e1[0] = Ps.Es[1];
-        e2[0] = Ps.Es[2];
+        if (Ps.Es) {
+            e0[0] = Ps.Es[0];
+            e1[0] = Ps.Es[1];
+            e2[0] = Ps.Es[2];
+        }
     } else {
         reset_params(); 
     }
@@ -255,8 +277,17 @@ const populate = () => {
     complex_read  = polar_mode ? polar_read : rect_read;
     const mode = polar_mode ? "Polar" : "Rect";
 
-    Orveyl.Parameters.innerHTML = [
-        `<input type="button" id="toggleMode" value="Input Mode"></input>: ${mode}`,
+    Orveyl.Menu.innerHTML = [
+        `Preset: ${[
+            `<select id="preset">`,
+            `<option value="0" ${preset == 0 ? "selected" : ""}>...</option>`,
+            `<option value="1" ${preset == 1 ? "selected" : ""}>Mandelbrot</option>`,
+            `<option value="2" ${preset == 2 ? "selected" : ""}>Julia</option>`,
+            `<option value="3" ${preset == 3 ? "selected" : ""}>Newton</option>`,
+            `</select>`,
+        ].join("")}`,
+        ``,
+        `Input Mode: <input type="button" id="toggleMode" value=${mode}></input>`,
         `Step Size: <input id="stepsize" type="number" step=0.001 min=0 style="width:5em" value="${step_size}">`,
         ``,
         `Palette: ${[
@@ -277,6 +308,9 @@ const populate = () => {
         ].join("")}`,
         `Iterations: <input id="iter" type="number" step=1 min=0 max=256 style="width:4em" value="${iter}">`,
         ``,
+
+        `<hr>`, //////////////////////////////////////////////////////////////
+
         `<details>
             <summary title="Input Mobius Transformation">
                 :: M ::
@@ -315,7 +349,6 @@ const populate = () => {
                 <input type="button" id="resetF" value="Reset">
                 <input type="button" id="randF" value="Rand">
                 <input type="button" id="SGdz" value="∫G">
-                <input type="button" id="swapFG" value="Swap">
             </summary>
             ${poly_input(f)}
         </details>`,
@@ -337,9 +370,13 @@ const populate = () => {
             ${float_input("e0", e0)} ${float_input("e1", e1)} ${float_input("e2", e2)}
         </details>`,
 
-        `<input type="button" id="reset" value="Reset All"></input>`,
+        `
+        <input type="button" id="swapFG" value="Swap F/G">
+        <input type="button" id="reset" value="Reset All"></input>`,
         ``,
-    
+
+        `<hr>`, //////////////////////////////////////////////////////////////
+
         `<details>
             <summary>:: Help ::</summary>
             <ul>
@@ -353,9 +390,10 @@ const populate = () => {
                 </ul></li>
             </ul>
         </details>`,
+        
     ].join("<br>");
 
-    document.getElementById("parameters").addEventListener("change", ev => {
+    document.getElementById("menu").addEventListener("change", ev => {
         read_params();
         update();
     }, false);
@@ -382,8 +420,7 @@ const populate = () => {
     document.getElementById("reset" ).onclick = () => { reset_params(); update(); }
     
     document.getElementById("randF").onclick = () => {
-        const R = () => Complex.exp(Complex.im(Calc.π*Calc.Rand.Sign())).sc(Calc.Rand.Unit());
-        f.c.map(c => c.copy(R()));
+        f.rand();
         update();
     }
     
@@ -398,8 +435,7 @@ const populate = () => {
     }
     
     document.getElementById("randG").onclick = () => {
-        const R = () => Complex.exp(Complex.im(Calc.π*Calc.Rand.Sign())).sc(Calc.Rand.Unit());
-        g.c.map(c => c.copy(R()));
+        g.rand();
         update();
     }
     
@@ -410,6 +446,45 @@ const populate = () => {
 }
 
 const read_params = () => {
+    preset = document.getElementById("preset").value;
+    let Ps = null;
+    switch (preset) {
+    default:
+    case "0":
+        break;
+
+    case "1":
+        Ps = {
+            p:Calc.Rand.Choice(2,-2)(), i:64,
+            Ms:[4.5,0, -1,0, 0,0, 1,0],
+            Fs:[0,0, 0,0, 1,0, 0,0, 0,0, 0,0, 0,0, 0,0],
+        }; break;
+
+    case "2":
+        Ps = {
+            p:Calc.Rand.Choice(2,-2)(), i:64,
+            Ms:[4.5,0, 0,0, 0,0, 1,0],
+            Cs:[0.5*Calc.Rand.Sign(),0.5*Calc.Rand.Sign(), 0,0],
+            Fs:[0,0, 0,0, 1,0, 0,0, 0,0, 0,0, 0,0, 0,0],
+        }; break;
+
+    case "3":
+        g.setDerivative(f.rand());
+        Ps = {
+            p:Calc.Rand.Choice(4,4,4,6,6,-4)(), i:32,
+            Bs:[1,0, -1,0],
+            Cs:[0,0, 0,0],
+            Fs:f.flat(),
+            Gs:g.flat(),
+            Es:[0,0,0]
+        }; break;
+    }
+
+    if (Ps) {
+        //window.history.pushState({}, "");
+        window.location.assign(`/?demo=fractal&Ps=${encode(Ps)}`);
+    }
+    
     pal = document.getElementById("pal").value;
     iter = document.getElementById("iter").value;
 

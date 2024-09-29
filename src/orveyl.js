@@ -25,7 +25,7 @@ export class Orveyl {
     static Device = null;
 
     static Status = document.getElementById("status");
-    static Parameters = document.getElementById("parameters");
+    static Menu = document.getElementById("menu");
 
     static Canvas;
     static MaxResolution = [1920, 1080];
@@ -75,19 +75,24 @@ export class Orveyl {
         await Orveyl.InitHardware();
         Orveyl.InitCanvas(...Orveyl.DefaultResolution);
         Orveyl.InitContext();
-
+        
         await Orveyl.InitShaderModules();
         Orveyl.InitRenderTextures();
         await Orveyl.InitTextureAssets();
         Orveyl.InitGPUBuffers();
         Orveyl.InitBindGroups();
         Orveyl.InitPipelines();
-
+        
         Orveyl.InitSystemDefaults();
         Orveyl.InitInput();
-
+        
         Orveyl.InitScene();
 
+        document.getElementById("fullscreen").onclick = () => {
+            const fs = Orveyl.ToggleFullscreen();
+            Orveyl.SetMaximized(fs);
+        }
+        
         requestAnimationFrame(Orveyl.Update);
     }
 
@@ -101,10 +106,20 @@ export class Orveyl {
             Orveyl.Device = await Orveyl.Adapter.requestDevice() ??
                 err("Requested GPUDevice not found.");
         } catch (e) {
-            Orveyl.Status.innerHTML = [
-                `orveyl.js is a 3D Non-Euclidean WebGPU Renderer, and hobby project of adc.`,
+            document.getElementById("title").innerHTML = `<span style="color:#f00">ERROR</span>`;
+            Orveyl.Menu.innerHTML = [
+                `<q>${
+                    Rand.Choice(
+                        "You must not attempt this approach to parallels.",
+                        "I have measured that bottomless night, and all the light and all the joy of my life went out there.",
+                        "I entreat you, leave the science of parallels alone.",
+                        "Don't go any step further, or else you're a lost person.",
+                    )()
+                }
+                </q> -- Farkas Bolyai`,
                 ``,
-                `To view non-interactive screenshots and demo descriptions, please visit the <a style="color:#fff" href="/gallery.html">Gallery</a>.`,
+                `orveyl.js is a 3D Non-Euclidean WebGPU Renderer,`,
+                `and work-in-progress hobby project of adc.`,
                 ``,
                 `This application requires WebGPU support!`,
                 ``,
@@ -113,8 +128,12 @@ export class Orveyl {
                 `-- Microsoft Edge`,
                 `-- Firefox Nightly`,
                 ``,
-                `For more info, see <a style="color:#fff" href="https://github.com/gpuweb/gpuweb/wiki/Implementation-Status">WebGPU Implementation Status</a>.`,
+                `For more info, see <a href="https://github.com/gpuweb/gpuweb/wiki/Implementation-Status">WebGPU Implementation Status</a>.`,
+                ``,
+                `To view non-interactive screenshots and demo descriptions, please visit the <a href="/gallery.html">Gallery</a>.`,
+                ``,
             ].join("<br>");
+            Orveyl.Status.innerHTML = e;
             throw e;
         }
 
@@ -143,16 +162,40 @@ export class Orveyl {
         return Orveyl.Maximized;
     }
 
-    static SetFullscreen(enabled) {
+    static ToggleMaximized() {
+        return Orveyl.SetMaximized(!Orveyl.Maximized);
+    }
+
+    static SetFullscreen(enabled, elem=document.body) {
         if (enabled) {
             if (!document.fullscreenElement) {
-                Orveyl.Canvas.requestFullscreen();
+                elem.requestFullscreen();
+                return true;
             }
         } else if (document.exitFullscreen) {
             document.exitFullscreen();
+            return false;
         }
 
-        return document.fullscreenElement;
+        return document.fullscreenElement != null;
+    }
+
+    static ToggleFullscreen() {
+        return Orveyl.SetFullscreen(!document.fullscreenElement);
+    }
+
+    static ToggleImmersiveMode() {
+        if (Orveyl.Canvas.style.zIndex > 0) {
+            Orveyl.SetMaximized(false);
+            Orveyl.SetFullscreen(false);
+            Orveyl.Canvas.style.zIndex = -1;
+            return false;
+        }
+
+        Orveyl.SetMaximized(true);
+        Orveyl.SetFullscreen(true, Orveyl.Canvas);
+        Orveyl.Canvas.style.zIndex = +1;
+        return true;
     }
 
     static InitContext() {
@@ -876,7 +919,7 @@ export class Orveyl {
 
         if (input.curr("alt")) {
             if (input.tick("enter") == 1) {
-                Orveyl.SetMaximized(!Orveyl.Maximized);
+                Orveyl.ToggleImmersiveMode();
             }
         }
 
@@ -965,13 +1008,17 @@ export class Orveyl {
             script.onload = function () {
                 console.log(`Loaded demo: ${script.src}`);
                 if (name != "default") {
-                    document.title = `ORVEYL :: ${name.toUpperCase()}`;
+                    const title = name.toUpperCase();
+                    document.title = `ORVEYL :: ${title}`;
+                    document.getElementById("title").innerHTML = title;
                 } else {
                     document.title = `:: ORVEYL ::`;
+                    document.getElementById("title").innerHTML = "HOME";
                 }
             };
 
             document.title = `ORVEYL :: Loading...`;
+            document.getElementById("title").innerHTML = "Loading...";
             console.log(`Loading demo... ${script.src}`)
             document.head.appendChild(script);
         };

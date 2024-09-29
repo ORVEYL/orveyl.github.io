@@ -691,6 +691,14 @@ fn skyColor(fPos : vec4f) -> vec4f {
             case 6: { // Plot
                 col = Crgb(fz.xy);
             }
+
+            case -120: { // Home
+                col = 0.5*vec3f(-tanh(lr))+0.5;
+                col*= 0.5*tanh(lr*0.75)+0.5;
+                col*= 0.5*vec3f(cos(PI*(abs(2*lr))))+0.5;
+                col*= hcl(t/TAU, 0.6, min(1, 1/(6*r*r)));
+                col*= 0.5;
+            }
         }
 
         return vec4f(col, 1);

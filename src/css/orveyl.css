@@ -1,0 +1,85 @@
+body {
+    font-family: monospace; font-size: 10pt;
+    margin: 0; padding: 0;
+    color: #ccc; background-color: #000;
+
+    background-image: linear-gradient(#111, #000);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+
+    overflow: hidden;
+}
+
+a:link    { color: #08f; }
+a:visited { color: #80f; }
+a:hover   { color: #0ff; }
+a:active  { color: #ff0; }
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+}
+
+header, .content {
+    z-index: 0;
+    margin: 1em; padding: 1em;
+    max-width: fit-content;
+    border: solid;
+    color: #fff; background-color: #000E;
+}
+
+header {
+    max-height: 90vh;
+}
+
+div#menu, div#status {
+    padding: 1em;
+    border: solid 1px;
+
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+div#status {
+    border-color: #fff; border-top: 0;
+    color: #888;
+}
+
+canvas {
+    z-index: -1;
+    display: block; position: absolute;
+    top: 0; bottom: 0; left: 0; right: 0;
+    margin: auto; padding: 0;
+}
+
+table {
+    border: solid 1px #888;
+}
+
+th, td {
+    border: solid 1px #444;
+    padding: 0.5em;
+}
+
+input, select {
+    font-family: monospace; font-size: 10pt;
+    color: #fff; background-color: #000E;
+}
+
+input[type=button] {
+    margin: 0; padding: 0 0.5em;
+}
+
+input[type=color] {
+    width: 2em; height: 1em;
+    padding: 0;
+    border-color: #fff;
+}
+
+input[type="color" i]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+input#fullscreen {
+    padding: 0 3px;
+}

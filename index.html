@@ -5,30 +5,28 @@
     <meta charset="utf-8">
     <meta name="description" content="Welcome to the Orveyl! Explore scenes in Hyperbolic Geometry in-browser. orveyl.js is a 3D Non-Euclidean WebGPU Renderer, and hobby project of adc.">
     <title>:: ORVEYL ::</title>
+    <link rel="icon" type="image/png" href="/img/favicon.png">
+    <link rel="stylesheet" href="src/css/orveyl.css">
     <script type="module" src="src/orveyl.js"></script>
   </head>
-  <body style="background-color:#111; color:#ccc;">
+  <body>
+
     <header>
-        adc :: ORVEYL :: {
-          <a style="color:#fff" href="/">home</a> |
-          <a style="color:#fff" href="menu.html">menu</a> |
-          <a style="color:#fff" href="/gallery.html">gallery</a>
-      }
+      adc :: ORVEYL :: {
+          <a href="/">home</a> |
+          <a href="/gallery.html">gallery</a>
+      } <input type="button" id="fullscreen" value="🔳">
     </header>
 
-    <details>
-      <summary>Parameters</summary>
-      <div id="parameters" style=
-      "z-index:1; font-family: monospace; color:#fff; background:#000; width:fit-content; padding:1em; border:solid;"
-      ></div>
-    </details>
+    <div class="content">
+      <details open>
+        <summary><span id="title"></span></summary>
+        <div id="menu"></div>
+        <div id="status"></div>
+      </details>
+    </div>
 
-    <p id="status" style="color:#fff"></p>
-
-    <canvas style=
-    "z-index:-1; padding: 0; margin: auto; display: block; position: absolute;
-    top: 0; bottom: 0; left: 0; right: 0;"
-    ></canvas>
+    <canvas></canvas>
 
   </body>
 </html>

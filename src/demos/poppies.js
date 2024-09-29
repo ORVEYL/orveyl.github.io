@@ -20,6 +20,24 @@ import { Orveyl } from "../orveyl.js";
 
 const size = Calc.Clamp(0, 4)(Orveyl.InitParams.get("size") ?? 0);
 
+Orveyl.Menu.innerHTML = [
+    `Size: ${[
+        `<select id="size">`,
+        `<option value="0" ${size == 0 ? "selected" : ""}>S</option>`,
+        `<option value="1" ${size == 1 ? "selected" : ""}>M</option>`,
+        `<option value="2" ${size == 2 ? "selected" : ""}>L</option>`,
+        `<option value="3" ${size == 3 ? "selected" : ""}>XL</option>`,
+        `</select>`,
+    ].join("")}`,
+].join("<br>");
+
+document.getElementById("menu").addEventListener("change", ev => {
+    const newsize = document.getElementById("size").value;
+    if (newsize != size) {
+        window.location.assign(`/?demo=poppies&size=${newsize}`);
+    }
+}, false);
+
 const [P,Q,R] = [3,7,2];
 const sys = new KB.System(
     ["a", "b", "c"],
