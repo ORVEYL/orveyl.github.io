@@ -173,6 +173,7 @@ export class V4 extends Vector {
     }
 
     static of(x, y, z, w) { return super.of(x??0, y??0, z??0, w??0); }
+    static rgb(r, g, b, a=1) { return V4.of(r, g, b, a); }
 
     static E(i, s=1) { return V4.new.setAt(i, s); }
     static Ex(s=1) { return V4.E(0, s); } static get x() { return V4.Ex(); }
@@ -300,6 +301,27 @@ export class V4 extends Vector {
 
     static dist(a, b=V4.w) { return Geom.CosInv(Calc.Root(V4.quad(a,b))); }
     dist(v=V4.w) { return V4.dist(this, v); }
+
+    static lerp = (v0, v1) => t => {
+        return v0.dup.lerp(v1, t);
+    }
+
+    lerp(v, t) {
+        const d = this.dist(v);
+        const [s0, s1] = [
+            Geom.Sin((1-t)*d),
+            Geom.Sin(   t *d),
+        ];
+        return this.sc(s0).fma(s1, v).sc(1/Geom.Sin(d));
+    }
+
+    static bary = (A,B,C) => (wA, wB, wC) => {
+        return V4.Σ(
+            A.dup.sc(wA),
+            B.dup.sc(wB),
+            C.dup.sc(wC),
+        ).normalize();
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////

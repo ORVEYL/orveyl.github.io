@@ -324,6 +324,11 @@ export class Rand {
     static Gauss = μ => σ => RNG =>
         μ+((r, θ) => r*Geom.Sph.Cos(θ))(σ*Sqrt(-2*Log(Rand.Unit(RNG))), τ*Rand.Unit(RNG));
     
+    static Bary = RNG => {
+        const [p, q] = [Rand.Unit(), Rand.Unit()];
+        const [r, s] = (p+q > 1) ? [1-p, 1-q] : [p, q];
+        return [r, s, 1-(r+s)];
+    }
 };
 
 export class SimplexNoise {
