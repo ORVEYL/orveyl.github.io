@@ -210,6 +210,19 @@ export class VertexBuffer extends F32Buffer {
     get count() { return this.f32buf.byteLength / this.layout.arrayStride; }
 };
 
+export class IndexArray extends Array {
+    constructor() {
+        super();
+        this.base = 0;
+    }
+
+    push(...indices) {
+        for (let idx of indices) {
+            super.push(this.base + idx);
+        }
+    }
+};
+
 export class IndexBuffer extends U32Buffer {
     constructor (device, label, usage, data) {
         super(device, label, GPUBufferUsage.INDEX | usage, data);

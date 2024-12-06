@@ -295,18 +295,18 @@ branch(
 const sc = new Scene("Floral");
 
 if (Ps.Mask & 0b001) {
-    const geom0 = new Geometry("FloralGeom0", sc, va0)
-    geom0.mode = 0; geom0.blend = 1;
+    new Geometry("FloralGeom0", va0).attachTo(sc)
+    .setMode(0).setBlend(1);
 }
 
 if (Ps.Mask & 0b010) {
-    const geom1 = new Geometry("FloralGeom1", sc, va1)
-    geom1.mode = 1; geom1.blend = 1;
+    const geom1 = new Geometry("FloralGeom1", va1).attachTo(sc)
+    .setMode(1).setBlend(1);
 }
 
 if (Ps.Mask & 0b100) {
-    const geom2 = new Geometry("FloralGeom2", sc, va2)
-    geom2.mode = 2; geom2.blend = 0;
+    const geom2 = new Geometry("FloralGeom2", va2).attachTo(sc)
+    .setMode(2).setBlend(0);
 }
 
 Scene.Manager.add(sc).useIndex(0);

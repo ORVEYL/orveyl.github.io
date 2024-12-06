@@ -3,7 +3,9 @@
 import { Component } from "../component.js";
 import { Manager } from "../system/manager.js";
 
-export class ControllerManager extends Manager {};
+export class ControllerManager extends Manager {
+    static FluxScale = undefined;
+};
 
 export class Controller extends Component {
 

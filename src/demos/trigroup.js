@@ -17,7 +17,7 @@ import { VertexArray, IndexBuffer, Vertex } from "../gpubuffer.js";
 import { Orveyl } from "../orveyl.js";
 
 class TriGroup extends WordTree {
-    constructor(name, parent, PQR, scale, depth, bailout) {
+    constructor(name, PQR, scale, depth, bailout) {
         const [P,Q,R] = PQR;
         const sys = new KB.System(
             ["a", "b", "c"],
@@ -30,7 +30,7 @@ class TriGroup extends WordTree {
             )
         ).complete();
 
-        super(name, sys, parent);
+        super(name, sys);
 
         this.PQR = PQR;
         this.scale = scale;
@@ -335,7 +335,7 @@ document.getElementById("skyCol").addEventListener("change", ev => {
     set_sky(ev.target.value.slice(1));
 }, false);
 
-const Tg = new TriGroup("TriGroup", null, [P,Q,R], scale, depth, bailout);
+const Tg = new TriGroup("TriGroup", [P,Q,R], scale, depth, bailout);
 Scene.Manager.add(Tg).useIndex(0);
 
 async function* genstep(tg, layer) {
@@ -382,7 +382,7 @@ async function* genstep(tg, layer) {
         }
     }
 
-    const geom = new Geometry(`${tg.name}Geom`, tg, new VertexArray());
+    const geom = new Geometry(`${tg.name}Geom`, new VertexArray()).attachTo(tg);
     if (offset > 0) {
         geom.rm(M4.MovX(offset), M4.RotJ(-π/2));
     } else {

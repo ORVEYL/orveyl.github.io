@@ -18,10 +18,9 @@ export class Scene extends Transform {
     static BreadcrumbRoot = new Scene("BreadcrumbRoot");
     static Breadcrumb = null;
 
-    constructor(name="Scene", parent=null, relativeTf) {
-        super(name, parent, relativeTf);
+    constructor(name="Scene", relativeTf) {
+        super(name, relativeTf);
         this.visible = true;
-
         this.onPopulate = null;
     }
 

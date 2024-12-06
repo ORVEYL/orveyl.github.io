@@ -308,14 +308,14 @@ for (let i = 0; i <3; ++i) {
     }
 }
 
-const geom_ground = new Geometry("Ground", null, ground_va).rm(
+const geom_ground = new Geometry("Ground", ground_va).rm(
     M4.MovZ(-1/4)
 ).attach(
-    new Geometry("Flower", null, flower_va)
+    new Geometry("Flower", flower_va)
 );
 
-const geom_star = new Geometry("Stars", geom_ground, star_va);
-geom_star.mode = 0; geom_star.blend = 1;
+new Geometry("Stars", star_va).attachTo(geom_ground)
+.setMode(0).setBlend(1);
 
 const zs = [
     2, 2, 1.7, 1.5, 1.2,
@@ -323,7 +323,9 @@ const zs = [
 
 for (let i = -3; i <=+3; ++i) {
 
-    const geom_ground_alt = new Geometry("GroundAlt", geom_ground, ground_va).rm(
+    const geom_ground_alt = new Geometry(
+        "GroundAlt", ground_va
+    ).attachTo(geom_ground).rm(
         M4.Transport(i*0.5),
         M4.MovY(Rand.Choice(-2,+2)()),
         M4.MovZ(zs*stem_h+0.5),
@@ -331,11 +333,11 @@ for (let i = -3; i <=+3; ++i) {
         M4.RotI(π*Rand.Sign()),
         M4.Transport(Rand.Sign(), Rand.Sign(), 0, 1),
     ).attach(
-        new Geometry("FlowerAlt", null, flower_va),
+        new Geometry("FlowerAlt", flower_va),
     );
 
-    const geom_star_alt = new Geometry("StarsAlt", geom_ground_alt, star_va);
-    geom_star_alt.mode = 0; geom_star_alt.blend = 1;
+    new Geometry("StarsAlt", star_va).attachTo(geom_ground_alt)
+    .setMode(0).setBlend(1);
 }
 
 Scene.Manager.add(geom_ground).useIndex(0);

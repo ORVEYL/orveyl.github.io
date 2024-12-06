@@ -1,21 +1,51 @@
 // adc :: geometry.js
 
 import { Scene } from "../scene.js";
-import { Vertex, VertexBuffer, IndexBuffer } from "../../gpubuffer.js";
+import { F32Buffer, Vertex, VertexBuffer, IndexBuffer } from "../../gpubuffer.js";
 import { Visitor } from "../visitor.js";
+import { Orveyl } from "../../orveyl.js";
 
 export class Geometry extends Scene {
     static Device = null;
 
-    constructor(name="Geometry", parent=null, va=null, ia=null) {
-        super(name, parent);
+    constructor(name="Geometry", va=null, ia=null) {
+        super(name);
 
         this.va = va;
         this.ia = ia;
+
+        this.ob = {
+            mat: new F32Buffer(
+                Orveyl.Device, "`${name}.ob.mat`",
+                GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                new Float32Array(16),
+            ),
+            tint: new F32Buffer(
+                Orveyl.Device, "`${name}.ob.mat`",
+                GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                new Float32Array(4),
+            ),
+        };
+
+        this.bg = Orveyl.Device.createBindGroup({
+            label: `${name}.bg`,
+            layout: Orveyl.BindGroupLayouts.ObjectData,
+            entries: [
+                { binding: 0, resource: { buffer: this.ob.mat.gpubuf } },
+                { binding: 1, resource: { buffer: this.ob.tint.gpubuf } },
+            ],
+        });
+
         this.write();
 
         this.mode = 2;
         this.blend = 0;
+    }
+
+    invalidate() {
+        super.invalidate();
+        Orveyl.DrawCache.Collector = null;
+        return this.write();
     }
 
     write() {
@@ -32,6 +62,19 @@ export class Geometry extends Scene {
             this.ia,
         ).write() : null;
 
+        this.ob?.mat.set(this.world_from_local, 0).write();
+        this.ob?.tint.set(this.tint ?? [1,1,1,1], 0).write();
+
+        return this;
+    }
+
+    setMode(mode) {
+        this.mode = mode;
+        return this;
+    }
+
+    setBlend(blend) {
+        this.blend = blend;
         return this;
     }
 };

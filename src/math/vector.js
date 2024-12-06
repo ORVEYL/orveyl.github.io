@@ -43,7 +43,7 @@ export class Vector extends Float64Array {
     mix(v, t) { return this.sc(1-t).fma(t, v); }
 
     ip(v) { return Σ(Zip(Mul)(this)(v)); }
-    op(v) { return Vector.new(this.length * v.length).copy(Outer(Mul)(a)(b).flat()); }
+    op(v) { return Vector.new(this.length * v.length).copy(Outer(Mul)(this)(v).flat()); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -434,6 +434,7 @@ export class B4 extends Vector {
     }
 
     exp(N=24) {
+        // TODO: B4 exp can be optimized in terms of symm / skew parts only
         return M4.Line(...this).exp(N);
     }
 
@@ -741,6 +742,7 @@ export class M4 extends Vector {
         return Out;
     }
 
+    // TODO: unsurprisingly, the per-multiply dup is costly
     lm(...Ls) { for (let L of Ls) { M4.Mul(L, this.dup, this); } return this; }
     rm(...Rs) { for (let R of Rs) { M4.Mul(this.dup, R, this); } return this; }
     static lm(L, ...Ls) { return L?.dup.lm(...Ls) ?? M4.id; }

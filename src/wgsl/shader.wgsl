@@ -28,11 +28,14 @@ struct uTimeStruct {
 @group(0) @binding(6) var uTexSampler : sampler;
 @group(0) @binding(7) var uTexView: texture_2d<f32>;
 
-@group(1) @binding(0) var gPos: texture_2d<f32>;
-@group(1) @binding(1) var gCol: texture_2d<f32>;
-@group(1) @binding(2) var gMat: texture_2d<u32>;
+@group(1) @binding(0) var<uniform> objMat: mat4x4f;
+@group(1) @binding(1) var<uniform> objTint: vec4f;
 
-@group(1) @binding(3) var gDepth: texture_depth_2d;
+@group(2) @binding(0) var gPos: texture_2d<f32>;
+@group(2) @binding(1) var gCol: texture_2d<f32>;
+@group(2) @binding(2) var gMat: texture_2d<u32>;
+@group(2) @binding(3) var gDepth: texture_depth_2d;
+
 
 // SOMEDAY: f64 polyfill
 // https://github.com/clickingbuttons/jeditrader/blob/a921a0e/shaders/src/fp64.wgsl
@@ -356,9 +359,9 @@ fn vertGBuf(
 ) -> VertOut {
     var out : VertOut;
 
-    let worldPos = uMat.WorldFromLocal * /*uInstMats[in.iIdx]*/ in.vPos;
+    let worldPos = objMat * /*uInstMats[in.iIdx]*/ in.vPos;
     out.vPos = worldPos / worldPos.w;
-    out.vCol = uTint * in.vCol;
+    out.vCol = objTint * in.vCol;
     out.vTex = in.vTex;
     //out.vMat = in.vMat;
 
@@ -391,12 +394,12 @@ fn vertGBufSplat(
 ) -> VertOut {
     var out : VertOut;
 
-    let worldPos = uMat.WorldFromLocal * in.vPos;
+    let worldPos = objMat * in.vPos;
     out.vPos = worldPos / worldPos.w;
     out.vCol = in.vCol;
 
     // {
-    //     let eye = vec4f(0,0,0,-1) * uMat.ViewFromWorld;
+    //     let eye = vec4f(0,0,0,-1) * objMat;
     //     let a = eye;
     //     let b = worldPos;
 

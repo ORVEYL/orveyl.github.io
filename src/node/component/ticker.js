@@ -9,9 +9,10 @@ export class Ticker extends Component {
 
     static System = new TickerSystem();
 
-    constructor(name="Ticker", parent=null, proc=null) {
-        super(name, parent);
+    constructor(name="Ticker", proc=null) {
+        super(name);
         this.proc = proc;
+        this.tick = 0;
         this.dt = 1/1000;
         this.t = 0;
         this.active = false;
@@ -21,11 +22,13 @@ export class Ticker extends Component {
 
     update(dt) {
         if (!this.active) return;
+        ++this.tick;
         this.t += this.dt * dt;
         if (this.proc) { this.proc(this); }
     }
 
     play(rate=1) {
+        if (rate == 0) return this.pause;
         this.dt = rate/1000;
         this.active = true;
         return this;

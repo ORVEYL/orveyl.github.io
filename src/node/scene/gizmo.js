@@ -1,12 +1,11 @@
 // adc :: gizmo.js
 
-import { Scene } from "../scene.js";
 import { Geometry } from "./geometry.js";
 import { VertexArray } from "../../gpubuffer.js";
 import { V4, M4 } from "../../math/vector.js";
 import { SI } from "../../math/si.js";
 
-export class Gizmo extends Scene {
+export class Gizmo extends Geometry {
 
     static DefaultVertexArray = undefined;
     static DefaultIndexArray = undefined;
@@ -35,11 +34,8 @@ export class Gizmo extends Scene {
         ];
     }
     
-    constructor(name="Gizmo", parent=null) {
-        super(name, parent);
-        const geom = new Geometry(
-            "GizmoGeom", this, Gizmo.DefaultVertexArray, Gizmo.DefaultIndexArray
-        );
-        geom.mode = 1;
+    constructor(name="Gizmo") {
+        super(name, Gizmo.DefaultVertexArray, Gizmo.DefaultIndexArray);
+        this.mode = 1;
     }
 };

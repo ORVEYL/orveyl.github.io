@@ -86,8 +86,8 @@ export class Text extends Scene {
         // 5 6 7
     }
 
-    constructor(name="Text", parent=null) {
-        super(name, parent);
+    constructor(name="Text") {
+        super(name);
 
         this.text = "#";
         this.cW = 1; this.cH = 1;
@@ -98,7 +98,7 @@ export class Text extends Scene {
         this.separator = "\r\n";
         this.tabstop = 8;
 
-        this.geom = new Geometry("TextGeom", this);
+        this.geom = new Geometry("TextGeom").attachTo(this);
         this.geom.mode = 1;
     }
 
@@ -168,7 +168,7 @@ export class Text extends Scene {
                     continue;
 
                 case "@":
-                    new Scene(`@${branch++}`, this, Cursor.dup.rm(O));
+                    new Scene(`@${branch++}`, Cursor.dup.rm(O)).attachTo(this);
                     continue;
             }
 

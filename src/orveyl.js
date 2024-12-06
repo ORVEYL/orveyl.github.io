@@ -14,7 +14,7 @@ import { Input } from "./input.js";
 import { Scene } from "./node/scene.js";
 import { Gizmo } from "./node/scene/gizmo.js";
 import { Camera } from "./node/scene/camera.js";
-import { Controller } from "./node/component/controller.js";
+import { Controller, ControllerManager } from "./node/component/controller.js";
 import { Ticker } from "./node/component/ticker.js";
 import { Geometry, GeometryCollector } from "./node/scene/geometry.js";
 
@@ -51,6 +51,8 @@ export class Orveyl {
     static PipelineLayouts = {};
     static Pipelines = {};
 
+    static DrawCache = {};
+
     static Step = -1;
     static T0 = 0;//Date.now();
     static TPrev = Orveyl.T0;
@@ -63,7 +65,7 @@ export class Orveyl {
     static DefaultPlayer = null;
 
     static InitBreadcrumb = sc => {
-        sc.attach(new Gizmo());
+        new Gizmo(`Gizmo[${sc.name}]`).attachTo(sc);
     };
 
     static InitParams = new URLSearchParams(window.location.search);
@@ -361,6 +363,18 @@ export class Orveyl {
             GPUBufferUsage.COPY_DST,
             [0,0,0,0, 0,0,0,0, 0,0,0,0],
         ).write();
+
+        Orveyl.GPUBuffers.ObjMat = new F32Buffer(
+            Orveyl.Device, "Orveyl.GPUBuffers.ObjMat",
+            GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            new Float32Array(16),
+        ).write();
+
+        Orveyl.GPUBuffers.ObjTint = new F32Buffer(
+            Orveyl.Device, "Orveyl.GPUBuffers.ObjTint",
+            GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            new Float32Array([1,1,1,1]),
+        ).write();
     }
 
     static InitBindGroups() {
@@ -462,6 +476,31 @@ export class Orveyl {
                 { binding: 1, resource: Orveyl.TextureViews.GBufColor },
             ],
         });
+
+        Orveyl.BindGroupLayouts.ObjectData = Orveyl.Device.createBindGroupLayout({
+            label: "Orveyl.BindGroupLayouts.ObjectData",
+            entries: [
+                { // object mats
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
+                    buffer: { type: "uniform" },
+                },
+                { // object tint color
+                    binding: 1,
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
+                    buffer: { type: "uniform" },
+                },
+            ],
+        });
+
+        Orveyl.BindGroups.ObjectData = Orveyl.Device.createBindGroup({
+            label: "Orveyl.BindGroup.ObjectData",
+            layout: Orveyl.BindGroupLayouts.ObjectData,
+            entries: [
+                { binding: 0, resource: { buffer: Orveyl.GPUBuffers.ObjMat.gpubuf } },
+                { binding: 1, resource: { buffer: Orveyl.GPUBuffers.ObjTint.gpubuf } },
+            ],
+        });
     }
 
     static InitPipelines() {
@@ -470,6 +509,7 @@ export class Orveyl {
             label: "Orveyl.PipelineLayouts.GBuf",
             bindGroupLayouts: [
                 Orveyl.BindGroupLayouts.Uniforms,
+                Orveyl.BindGroupLayouts.ObjectData,
             ],
         });
 
@@ -578,6 +618,7 @@ export class Orveyl {
             label: "Orveyl.PipelineLayouts.Deferred",
             bindGroupLayouts: [
                 Orveyl.BindGroupLayouts.Uniforms,
+                Orveyl.BindGroupLayouts.ObjectData,
                 Orveyl.BindGroupLayouts.GBufTextures,
             ],
         });
@@ -803,46 +844,53 @@ export class Orveyl {
         Orveyl.Root = new Scene("OrveylRoot");
         Orveyl.Root.attach(Scene.BreadcrumbRoot);
 
-        Orveyl.DefaultPlayer = new Scene("DefaultPlayer", Orveyl.Root);
+        Orveyl.DefaultPlayer = new Scene("DefaultPlayer").attachTo(Orveyl.Root);
 
         Controller.Manager.add(
-            new Controller("DefaultController", Orveyl.DefaultPlayer)
+            new Controller("DefaultController").attachTo(Orveyl.DefaultPlayer)
         ).useIndex(0);
 
-        const OrbitCameraRoot = new Scene("OrbitCameraRoot", Orveyl.DefaultPlayer);
-        OrbitCameraRoot.attach(new Ticker("OrbitCamAnim", null, a=>{
-            a.parent.matrix.copy(
-                M4.Euler(Orveyl.T/3000, π/8)
-            );
-        }).play());
-
-        const OrbitCameraPivot = new Scene(
-            "OrbitCameraPivot", OrbitCameraRoot, M4.MovX(-2)
+        const OrbitCameraRoot = new Scene("OrbitCameraRoot").attachTo(Orveyl.DefaultPlayer);
+        OrbitCameraRoot.attach(
+            new Ticker("OrbitCamAnim", a=>{
+                a.parent.matrix.copy(
+                    M4.Euler(Orveyl.T/3000, π/8)
+                );
+            }).play(),
         );
 
+        const OrbitCameraPivot = new Scene(
+            "OrbitCameraPivot", M4.MovX(-2)
+        ).attachTo(OrbitCameraRoot);
+
         Camera.Manager.add(
-            new Camera("DefaultCamera", Orveyl.DefaultPlayer),
-            new Camera("TopDownCamera", Orveyl.DefaultPlayer,
+            new Camera("DefaultCamera").attachTo(Orveyl.DefaultPlayer),
+
+            new Camera("TopDownCamera",
                 M4.rm(
                     M4.MovZ(+3/2), M4.RotJ(π/2)
                 )
-            ),
-            new Camera("SidescrollCamera", Orveyl.DefaultPlayer,
+            ).attachTo(Orveyl.DefaultPlayer),
+
+            new Camera("SidescrollCamera",
                 M4.rm(
                     M4.RotI(π/2), M4.MovX(-1)
                 )
-            ),
-            new Camera("OrbitCamera", OrbitCameraPivot),
-            new Camera("XPeekCamera", Orveyl.DefaultPlayer,
+            ).attachTo(Orveyl.DefaultPlayer),
+
+            new Camera("OrbitCamera").attachTo(OrbitCameraPivot),
+
+            new Camera("XPeekCamera",
                 M4.rm(
                     M4.MovX(-0.5)
                 )
-            ),
-            new Camera("ZPeekCamera", Orveyl.DefaultPlayer,
+            ).attachTo(Orveyl.DefaultPlayer),
+
+            new Camera("ZPeekCamera",
                 M4.rm(
                     M4.MovZ(0.01)
                 )
-            ),
+            ).attachTo(Orveyl.DefaultPlayer),
         ).useIndex(Orveyl.InitParams.get("cam") ?? 0);
 
         Gizmo.InitDefaults();
@@ -969,13 +1017,12 @@ export class Orveyl {
 
             // add to selected breadcrumb
             if (input.tick("space") == 1) {
-                const relTf = (Scene.Breadcrumb ?? Scene.BreadcrumbRoot).local_from_other(
-                    Controller.Manager.active.parent
-                );
+                const prev = Scene.Breadcrumb ?? Scene.BreadcrumbRoot;
 
                 Scene.Breadcrumb = new Scene(
-                    Rand.HexId(2)(), Scene.Breadcrumb ?? Scene.BreadcrumbRoot, relTf
-                );
+                    Rand.HexId(2)(),
+                    prev.local_from_other(Controller.Manager.active.parent)
+                ).attachTo(prev);
 
                 if (Orveyl.InitBreadcrumb) Orveyl.InitBreadcrumb(Scene.Breadcrumb);
                 console.log("Added breadcrumb: ", Scene.Breadcrumb);
@@ -995,9 +1042,11 @@ export class Orveyl {
         if (input.tick("analogLc")) ds.scFlux(3.0);
         if (Geom.Sig > 0) ds.scFlux(-1);
 
-        //ds.scFlux(SI.m_to_au(SI.Ref.speed_mps.highway));
+        if (ControllerManager.FluxScale) {
+            ds.scFlux(ControllerManager.FluxScale);
+        }
 
-        Controller.Manager.active?.parent?.matrix?.rm(ds.exp());
+        Controller.Manager.active?.parent?.rm(ds.exp());
     }
 
     static InitScene() {
@@ -1135,20 +1184,24 @@ export class Orveyl {
             },
         };
         
-        // TODO: only collect if geom has changed
-        const geom_collector = new GeometryCollector();
-        if (Scene.Manager.active?.visible) {
-            geom_collector.visit(Scene.Manager.active);
+        const draw_cache_valid = (Orveyl.DrawCache.Collector != null);
+        if (!draw_cache_valid) {
+            Orveyl.DrawCache.Collector = new GeometryCollector();
+            if (Scene.Manager.active?.visible) {
+                Orveyl.DrawCache.Collector.visit(Scene.Manager.active);
+            }
+            Orveyl.DrawCache.Collector.visit(Scene.BreadcrumbRoot);
         }
-        geom_collector.visit(Scene.BreadcrumbRoot);
 
         Orveyl.ClearGBuf();
-        Orveyl.DrawGeom(geom_collector.data[0], opaque_desc, Orveyl.Pipelines.GBufMode);
+        Orveyl.DrawGeom(
+            Orveyl.DrawCache.Collector.data[0], opaque_desc, Orveyl.Pipelines.GBufMode
+        );
         Orveyl.DrawDeferred();
 
         const blend_order = [1, 2];
         for (let i of blend_order) {
-            Orveyl.DrawGeom(geom_collector.data[i], blend_desc,
+            Orveyl.DrawGeom(Orveyl.DrawCache.Collector.data[i], blend_desc,
                 [   null,
                     Orveyl.Pipelines.AdditiveMode,
                     Orveyl.Pipelines.SubtractiveMode,
@@ -1158,7 +1211,7 @@ export class Orveyl {
     }
 
     static ClearGBuf() {
-        const enc = Orveyl.Device.createCommandEncoder();
+        const enc = Orveyl.Device.createCommandEncoder({ label:"ClearGBuf" });
         const pass = enc.beginRenderPass({
             colorAttachments: [
                 {
@@ -1185,6 +1238,8 @@ export class Orveyl {
 
         pass.setPipeline(Orveyl.Pipelines.GBufMode[2]);
         pass.setBindGroup(0, Orveyl.BindGroups.Uniforms);
+        pass.setBindGroup(1, Orveyl.BindGroups.ObjectData);
+
         pass.setVertexBuffer(0, Orveyl.VertexBuffers.Clear.gpubuf);
         pass.draw(1);
         pass.end();
@@ -1193,21 +1248,23 @@ export class Orveyl {
     }
 
     static DrawGeom(geom_src, passDesc, pipeline_modes) {
+
+        // TODO: Investigate Render Bundles?
+        // https://developer.mozilla.org/en-US/docs/Web/API/GPURenderBundle
+        // https://toji.dev/webgpu-best-practices/render-bundles.html
+
+        const enc = Orveyl.Device.createCommandEncoder({ label:"DrawGeom" });
+        const pass = enc.beginRenderPass(passDesc);
+        
         for (let geom of geom_src) {
-            const enc = Orveyl.Device.createCommandEncoder();
-            const pass = enc.beginRenderPass(passDesc);
             pass.setPipeline(pipeline_modes[geom.mode]);
             pass.setBindGroup(0, Orveyl.BindGroups.Uniforms);
+            pass.setBindGroup(1, geom.bg);
 
             pass.setVertexBuffer(0, geom.vb.gpubuf);
             if (geom.ib) {
                 pass.setIndexBuffer(geom.ib.gpubuf, "uint32");
             }
-
-            Orveyl.GPUBuffers.Matrices.set(geom.world_from_local, 2*16);
-            Orveyl.GPUBuffers.Matrices.write();
-
-            Orveyl.GPUBuffers.Tint.set(geom.tint ?? [1,1,1,1]).write();
 
             if (geom.mode == 0) {
                 pass.draw(6, geom.vb.count);
@@ -1218,14 +1275,14 @@ export class Orveyl {
                     pass.draw(geom.vb.count, 1);
                 }
             }
-            pass.end();
-
-            Orveyl.Device.queue.submit([enc.finish()]);
         }
+        
+        pass.end();
+        Orveyl.Device.queue.submit([enc.finish()]);
     }
 
     static DrawDeferred() {
-        const enc = Orveyl.Device.createCommandEncoder()
+        const enc = Orveyl.Device.createCommandEncoder({ label:"DrawDeferred" })
         const pass = enc.beginRenderPass({
             colorAttachments: [
                 {
@@ -1239,7 +1296,8 @@ export class Orveyl {
 
         pass.setPipeline(Orveyl.Pipelines.Deferred);
         pass.setBindGroup(0, Orveyl.BindGroups.Uniforms);
-        pass.setBindGroup(1, Orveyl.BindGroups.GBufTextures);
+        pass.setBindGroup(1, Orveyl.BindGroups.ObjectData);
+        pass.setBindGroup(2, Orveyl.BindGroups.GBufTextures);
         pass.draw(3);
         pass.end();
 

@@ -2,13 +2,13 @@
 
 export class Node {
 
-    constructor(name=null, parent=null) {
+    constructor(name=null) {
         if (name) this.name = name;
         this.parent = null;
         this.children = new Set();
-
-        parent?.attach(this);
     }
+
+    invalidate() { return this; }
 
     attach(...children) {
         for (let ch of children) {
@@ -17,6 +17,11 @@ export class Node {
             this.children.add(ch);
         }
 
+        return this.invalidate();
+    }
+
+    attachTo(parent) {
+        parent.attach(this);
         return this;
     }
 
@@ -29,12 +34,12 @@ export class Node {
     inject(parent) {
         this.parent?.attach(parent);
         parent.attach(this);
-        return this;
+        return this.invalidate();
     }
 
     extract() {
         this.parent.attach(...this.children);
-        return this;
+        return this.invalidate();
     }
 
     collect(pred) {

@@ -10,7 +10,7 @@ export class Chamber extends Scene {
     label(word) { if (Chamber.UseLabel) { this.name = word; } return this; }
 
     constructor(prev, fwd, rev, relativeTf) {
-        super(null, prev, relativeTf);
+        super(null, relativeTf).attachTo(prev);
         this.adj = new Map();
 
         if (this.parent instanceof Chamber) {
@@ -64,8 +64,8 @@ export class Chamber extends Scene {
 }
 
 export class WordTree extends Scene {
-    constructor(name, sys, parent=null, relativeTf=null) {
-        super(name, parent, relativeTf);
+    constructor(name, sys, relativeTf=null) {
+        super(name, relativeTf);
 
         this.sys = sys;
         Object.freeze(this.sys);
@@ -90,7 +90,7 @@ export class WordTree extends Scene {
     }
 
     add(word, onAdd) {
-        let added = false;
+        let added = null;
         const w = this.sys.reduce(word);
 
         let here = this.root;
@@ -117,7 +117,7 @@ export class WordTree extends Scene {
                 }
 
                 if (onAdd) onAdd(here);
-                added = true;
+                added = here;
             }
         }
 

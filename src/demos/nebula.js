@@ -93,17 +93,11 @@ wt.onPopulate = async self => {
         va_points.push([M.ra(template[0].pos), cc.scXYZ(0.25)]);
     });
 
-    {
-        const sm = new Geometry("TriMesh", self, va);
-        sm.mode = 2;
-        sm.blend = 1;
-    }
+    new Geometry("TriMesh", va).attachTo(self)
+    .setBlend(1);
 
-    {
-        const sm = new Geometry("PtMesh", self, va_points);
-        sm.mode = 0;
-        sm.blend = 1;
-    }
+    new Geometry("PtMesh", va_points).attachTo(self)
+    .setMode(0).setBlend(1);
 }
 
 Scene.Manager.add(wt).useIndex(0);

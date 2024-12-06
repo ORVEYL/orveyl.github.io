@@ -116,7 +116,7 @@ function PentaNet() {
         [P.Cw, cc], [P.dup.rm(Z).Cw, V4.w], [P.Cw, cc], [P.lm(T).Cw, cc],
     );
 
-    const wt = new WordTree("WordTree240314", sys, DefaultDemo);
+    const wt = new WordTree("WordTree240314", sys).attachTo(DefaultDemo);
     WordTree.Verbose = true;
     wt.onPopulate = async self => {
         const onAdd = here => {
@@ -131,9 +131,9 @@ function PentaNet() {
         onAdd(wt.root);
         wt.expand(6, onAdd);
 
-        let sm = new Geometry("Mesh", wt, va);
-        sm.mode = 1; sm.blend = 1;
-        sm.lm(M4.RotJ(-π/2), M4.MovX(ds));
+        new Geometry("Mesh", va).attachTo(wt)
+        .setMode(1).setBlend(1)
+        .lm(M4.RotJ(-π/2), M4.MovX(ds));
     }
 
     return wt;
@@ -141,35 +141,29 @@ function PentaNet() {
 const wt = PentaNet().populate();
 
 {
-    const txt = new Text("OrveylText", DefaultDemo);
-    txt.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovX(ds));
-    txt.setSize(1, 1, 1/4).setOffset(-4.5);
-    txt.setText("# ORVEYL #").commit();
-}
-
-{
-    const txt = new Text("ADC", DefaultDemo);
-    txt.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(+ds/3), M4.MovX(ds));
-    txt.setSize(1, 1, 1/16).setOffset(-1);
-    txt.setText("ADC").commit();
-}
-
-{
-    const txt = new Text("TutorialText", DefaultDemo);
-    txt.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(-ds/3), M4.MovX(ds));
-    txt.setSize(1, 1, 1/32).setOffset(-12).setSpacing(2);
-    txt.setText(
+    new Text("OrveylText").attachTo(DefaultDemo)
+    .setRelative(M4.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovX(ds)))
+    .setSize(1, 1, 1/4).setOffset(-4.5)
+    .setText("# ORVEYL #").commit();
+    
+    new Text("ADC").attachTo(DefaultDemo)
+    .setRelative(M4.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(+ds/3), M4.MovX(ds)))
+    .setSize(1, 1, 1/16).setOffset(-1)
+    .setText("ADC").commit();
+    
+    new Text("TutorialText").attachTo(DefaultDemo)
+    .setRelative(M4.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(-ds/3), M4.MovX(ds)))
+    .setSize(1, 1, 1/32).setOffset(-12).setSpacing(2)
+    .setText(
         "       WELCOME TO       ",
         " -- HYPERBOLIC SPACE -- ",
         "USE KEYBOARD TO NAVIGATE",
     ).commit();
-}
 
-{
-    const txt = new Text("DemoListText", DefaultDemo);
-    txt.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(-ds), M4.MovX(ds));
-    txt.setSize(1, 1, 1/16).setOffset(-11).setSpacing(2.83);
-    txt.setText(
+    const list_txt = new Text("DemoListText").attachTo(DefaultDemo)
+    .setRelative(M4.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(-ds), M4.MovX(ds)))
+    .setSize(1, 1, 1/16).setOffset(-11).setSpacing(2.83)
+    .setText(
         "      -- DEMOS --      ",
         "<TRIGROUP>-@#",
         " <FRACTAL>-@#",
@@ -178,7 +172,7 @@ const wt = PentaNet().populate();
         "  <NEBULA>-@#",
     ).commit();
 
-    const branches = txt.getBranches();
+    const branches = list_txt.getBranches();
     branches[0].dest = "trigroup";
     branches[1].dest = "fractal";
     branches[2].dest = "floral";
@@ -186,8 +180,8 @@ const wt = PentaNet().populate();
     branches[4].dest = "nebula";
 
     for (let br of branches) {
-        const sphere = new Sphere("Sphere", br, 1/10);
-        const portal = new Scene("Portal", br);
+        const sphere = new Sphere("Sphere", 1/10).attachTo(br);
+        const portal = new Scene("Portal").attachTo(br);
         portal.triggered = false;
 
         const va = new VertexArray();
@@ -202,30 +196,31 @@ const wt = PentaNet().populate();
             va.push([V4.w, V4.ones]);
             va.push([pos, col]);
         }
+
+        new Geometry("PortalGlow",
+            new VertexArray().push([V4.w, V4.ones])
+        ).attachTo(portal)
+        .setMode(0).setBlend(1);
         
-        const geom = new Geometry("PortalGeom", portal, va);
-        geom.mode = 1;
-        geom.blend = 1;
-
-        const point = new Geometry("PortalGlow", portal, new VertexArray().push([V4.w, V4.ones]));
-        point.mode = 0;
-        point.blend = 1;
-
-        const anim = new Ticker("Anim", portal, self => {
-            self.parent.matrix.copy(M4.RotI(self.t));
-
-            const pos = Orveyl.DefaultPlayer.world_from_local.Cw;
-            if (pos) {
-                const overlapped = sphere.test(pos);
-                if (overlapped && !portal.triggered) {
-                    portal.triggered = true;
-                    window.location.assign(`/?demo=${br.dest}`);
-                } else {
-                    portal.triggered = overlapped;
+        new Geometry("PortalGeom", va).attachTo(portal)
+        .setMode(1).setBlend(1)
+        .attach(
+            new Ticker("Anim", self => {
+                self.parent.setRelative(M4.RotI(self.t));
+    
+                const pos = Orveyl.DefaultPlayer.world_from_local.Cw;
+                if (pos) {
+                    const overlapped = sphere.test(pos);
+                    if (overlapped && !portal.triggered) {
+                        portal.triggered = true;
+                        window.location.assign(`/?demo=${br.dest}`);
+                    } else {
+                        portal.triggered = overlapped;
+                    }
                 }
-            }
-
-        }).play();
+    
+            }).play()
+        );
     }
 }
 
@@ -243,12 +238,13 @@ const wt = PentaNet().populate();
                 ]);
         }
 
-        const stars = new Geometry(`Stars${n}`, DefaultDemo, star_va);
-        stars.mode = 0; stars.blend = 1;
-
-        const anim = new Ticker("Anim", stars, self => {
-            self.parent.matrix.copy(Rs[n%3](self.t));
-        }).play(1/60 * Rand.Sign());
+        new Geometry(`Stars${n}`, star_va).attachTo(DefaultDemo)
+        .setMode(0).setBlend(1)
+        .attach(
+            new Ticker("Anim", self => {
+                self.parent.setRelative(Rs[n%3](self.t));
+            }).play(1/60 * Rand.Sign())
+        );
     }
 
     const f2reφ = π/2*Rand.Sign();
@@ -257,7 +253,7 @@ const wt = PentaNet().populate();
     const f7argω = Rand.Choice(+1, -1)();
     const lz = Calc.Max(0);
 
-    const sky_anim = new Ticker("SkyAnim", DefaultDemo, self => {
+    const sky_anim = new Ticker("SkyAnim", self => {
         Orveyl.SetSkyComplex(
             -120, 6,
             [
@@ -282,7 +278,7 @@ const wt = PentaNet().populate();
                 3+2*Math.cos(self.t/2)
             ],
         );
-    }).play(1/10)
+    }).attachTo(DefaultDemo).play(1/10)
 }
 
 Scene.Manager.add(DefaultDemo).useIndex(0);
