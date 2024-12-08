@@ -104,6 +104,14 @@ export const SmoothMinExp = λ => x => y => {
     return -λ*Log(Exp(-x/λ) + Exp(-y/λ));
 }
 
+export const SmoothMaxExp = λ => x => y => {
+    return -SmoothMinExp(λ)(-x)(-y);
+}
+
+export const SmoothClampExp = (λmin, λmax=λmin) => (min, max) => x => {
+    return SmoothMinExp(λmax)(max)(SmoothMaxExp(λmin)(min)(x));
+}
+
 export const Sq = x => x*x;
 export const Sqrt = Math.sqrt;
 export const Root = x => Sqrt(Abs(x));
@@ -329,6 +337,7 @@ export class Rand {
         const [r, s] = (p+q > 1) ? [1-p, 1-q] : [p, q];
         return [r, s, 1-(r+s)];
     }
+
 };
 
 export class SimplexNoise {
