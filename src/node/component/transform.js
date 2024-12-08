@@ -37,7 +37,7 @@ export class Transform extends Component {
         return super.invalidate();
     }
 
-    setRelative(relativeTf) { this.matrix = relativeTf; return this.invalidate(); }
+    setRelative(relativeTf) { this.matrix.copy(relativeTf); return this.invalidate(); }
     lm (...Ls) { this.matrix.lm (...Ls); return this.invalidate(); }
     lmR(...Ls) { this.matrix.lmR(...Ls); return this.invalidate(); }
     lc (...Ls) { this.matrix.lc (...Ls); return this.invalidate(); }
@@ -56,6 +56,11 @@ export class Transform extends Component {
 
     local_from_other(other) {
         return this.other_from_local(other).T;
+    }
+
+    attachTo(parent, relative) {
+        if (relative) this.setRelative(relative);
+        return super.attachTo(parent);
     }
 
 };

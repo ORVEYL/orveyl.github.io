@@ -165,6 +165,7 @@ const wt = PentaNet().populate();
     .setSize(1, 1, 1/16).setOffset(-11).setSpacing(2.83)
     .setText(
         "      -- DEMOS --      ",
+        " <TERRAIN>-@#",
         "<TRIGROUP>-@#",
         " <FRACTAL>-@#",
         "  <FLORAL>-@#",
@@ -173,11 +174,12 @@ const wt = PentaNet().populate();
     ).commit();
 
     const branches = list_txt.getBranches();
-    branches[0].dest = "trigroup";
-    branches[1].dest = "fractal";
-    branches[2].dest = "floral";
-    branches[3].dest = "poppies";
-    branches[4].dest = "nebula";
+    branches[0].dest = "terrain";
+    branches[1].dest = "trigroup";
+    branches[2].dest = "fractal";
+    branches[3].dest = "floral";
+    branches[4].dest = "poppies";
+    branches[5].dest = "nebula";
 
     for (let br of branches) {
         const sphere = new Sphere("Sphere", 1/10).attachTo(br);

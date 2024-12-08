@@ -702,6 +702,15 @@ fn skyColor(fPos : vec4f) -> vec4f {
                 col*= hcl(t/TAU, 0.6, min(1, 1/(6*r*r)));
                 col*= 0.5;
             }
+
+            case -121: { // TERRAIN sky
+                col = 0.5*vec3f(-tanh(lr))+0.5;
+                col*= 0.5*tanh(lr*0.75)+0.5;
+                col*= 0.5*vec3f(cos(PI*(abs(2*lr))))+0.5;
+                col*= hcl(t/TAU, 0.6, min(1, 1/(6*r*r)));
+                col*= 0.25;
+                col+= vec3f(0.0625, 0.05, 0.2)*(1-0.5*ideal.z*ideal.z);
+            }
         }
 
         return vec4f(col, 1);
