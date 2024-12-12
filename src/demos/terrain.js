@@ -21,7 +21,12 @@ const m = SI.m_to_au;
 SI.m_per_au = 256;
 
 const map_size = Calc.Clamp(0,4)(Orveyl.InitParams.get("size") ?? 1);
-const treasure_N = [3, 6, 9, 12][map_size];
+const map_type = Calc.Clamp(0,4)(Orveyl.InitParams.get("type") ?? 1)
+const map_elev = Orveyl.InitParams.get("elev") ?? 0;
+const map_pal_offset  = Orveyl.InitParams.get("p") ?? 0;
+
+const treasure_enabled = Orveyl.InitParams.get("n") ?? true;
+const treasure_N = treasure_enabled ? [3, 6, 9, 12][map_size] : 0;
 
 Orveyl.Menu.innerHTML = [
     `Size: ${[
@@ -32,32 +37,76 @@ Orveyl.Menu.innerHTML = [
         `<option value="3" ${map_size == 3 ? "selected" : ""}>L</option>`,
         `</select>`,
     ].join("")}`,
+
+    `Type: ${[
+        `<select id="type">`,
+        `<option value="0" ${map_type == 0 ? "selected" : ""}>Gentle</option>`,
+        `<option value="1" ${map_type == 1 ? "selected" : ""}>Normal</option>`,
+        `<option value="2" ${map_type == 2 ? "selected" : ""}>Rough</option>`,
+        `<option value="3" ${map_type == 3 ? "selected" : ""}>Extreme</option>`,
+        `</select>`,
+    ].join("")}`,
+
+    `Elevation: ${[
+        `<input id="elev" type="number" step="1" style="width:4em;" value="${map_elev}">`,
+        `</input>m`,
+    ].join("")}`,
+
+    `Palette Offset: ${[
+        `<input id="pal" type="number" step="1" style="width:4em;" value="${map_pal_offset}">`,
+        `</input>m`,
+    ].join("")}`,
+
+    `Treasure: ${[
+        `<select id="treasure">`,
+        `<option value="0" ${treasure_enabled == false ? "selected" : ""}>OFF</option>`,
+        `<option value="1" ${treasure_enabled == true  ? "selected" : ""}>ON</option>`,
+        `</select>`,
+    ].join("")}`,
+
+    `:: <input type="button" id="generate" value="Generate"> ::`,
 ].join("<br>");
 
-document.getElementById("menu").addEventListener("change", ev => {
-    const newsize = document.getElementById("size").value;
-    if (newsize != size) {
-        const ok = (newsize < 3) || confirm(
+document.getElementById("generate").onclick = () => {
+    const new_size = document.getElementById("size").value;
+    const ok = (new_size < 3) || confirm(
+        [
+            `Large maps require exponentially more resources to generate.`,
+            `This may cause your browser to become unresponsive or crash!`,
+            ``,
+            `Proceed anyway?`,
+        ].join("\n")
+    );
+
+    if (ok) {
+        window.location.assign(
             [
-                `Large maps require exponentially more resources to generate.`,
-                `This may cause your browser to become unresponsive or crash!`,
-                ``,
-                `Proceed anyway?`,
-            ].join("\n")
+                `/?demo=terrain`,
+                `size=${new_size}`,
+                `type=${document.getElementById("type").value}`,
+                `elev=${document.getElementById("elev").value}`,
+                `p=${document.getElementById("pal").value}`,
+                `n=${document.getElementById("treasure").value}`,
+            ].join("&")
         );
-        if (ok) {
-            window.location.assign(`/?demo=terrain&size=${newsize}`);
-        } else {
-            document.getElementById("size").value = map_size;
-        }
     }
-}, false);
+};
+
+const [
+    σz_f_type,
+    σz_e_type,
+    σz_v_type,
+] = [
+    [25, 75, 150, 300],
+    [5, 10, 25, 100],
+    [10, 25, 50, 200],
+];
 
 const tile_N = 8;
-const ground_z = m(-25);
-const ground_σz_face = m(75);
-const ground_σz_edge = m(10);
-const ground_σz_vert = m(25);
+const ground_z = m(map_elev);
+const ground_σz_face = m(σz_f_type[map_type]);
+const ground_σz_edge = m(σz_e_type[map_type]);
+const ground_σz_vert = m(σz_v_type[map_type]);
 
 const ground_z_lim_enabled = false;
 const [ground_z_min, ground_z_max] = [m(-100), m(100)];
@@ -79,7 +128,7 @@ const road_z_lim = Calc.SmoothMaxExp(1/16)(road_z+road_h);
 const camera_grounded = true;
 Orveyl.DefaultPlayer.setRelative(
     camera_grounded ?
-    M4.MovZ(-(ground_z_lim(ground_z) + road_h + m(SI.Ref.length_m.human_height))) : M4.id
+    M4.MovZ(ground_z_lim(ground_z) + road_h + m(1+SI.Ref.length_m.human_height)) : M4.id
 );
 
 const camera_human_scale = false;
@@ -123,7 +172,7 @@ const star_k = Rand.Gauss(0.8)(0.1);
 const star_col = () => V4.rgb(star_k(), star_k(), star_k());
 const rand_col = () => V4.rgb(Rand.Unit(), Rand.Unit(), Rand.Unit());
 
-const ground_col_offset = m(0);
+const ground_col_offset = m(map_pal_offset);
 const ground_pal = (t) => {
     t += ground_col_offset;
     return ground_col.dup.mul(
@@ -429,12 +478,12 @@ let treasure_count = 0;
 
 const treasure_va = new VertexArray().push(
     [V4.w, V4.rgb(0,0,0)],
-    [M4.MovX(+treasure_r).Cw, V4.rgb(1,0,0)],
-    [M4.MovY(+treasure_r).Cw, V4.rgb(0,1,0)],
-    [M4.MovZ(+treasure_r).Cw, V4.rgb(0,0,1)],
-    [M4.MovX(-treasure_r).Cw, V4.rgb(0,1,1)],
-    [M4.MovY(-treasure_r).Cw, V4.rgb(1,0,1)],
-    [M4.MovZ(-treasure_r).Cw, V4.rgb(1,1,0)],
+    [M4.MovX(+treasure_r).Cw, V4.rgb(1,0,0,0.6)],
+    [M4.MovY(+treasure_r).Cw, V4.rgb(0,1,0,0.6)],
+    [M4.MovZ(+treasure_r).Cw, V4.rgb(0,0,1,0.6)],
+    [M4.MovX(-treasure_r).Cw, V4.rgb(0,1,1,0.6)],
+    [M4.MovY(-treasure_r).Cw, V4.rgb(1,0,1,0.6)],
+    [M4.MovZ(-treasure_r).Cw, V4.rgb(1,1,0,0.6)],
 );
 
 const treasure_ia = new IndexArray();
