@@ -17,57 +17,46 @@ export class Shape extends Scene {
     get shapes() { return this.collect(ch => ch instanceof Shape); }
     get sign() { return this.invert ? -1 : +1; }
 
+    get neg() { this.invert = !this.invert; return this; }
+
     dist(pos=V4.w) { return this.sign * this.sdf(this.local_from_world.ra(pos)); }
     test(pos=V4.w) { return this.dist(pos) <= 0; }
 
-    grad(pos=V4.w, ε=1e-8) {
-        // https://github.com/mtwoodard/hypVR-Ray/blob/master/shaders/fragment.glsl
-        const [xx, yy, zz] = [
-            V4.of(pos.w, 0, 0, pos.x).normalize(),
-            V4.of(0, pos.w, 0, pos.y).normalize(),
-            V4.of(0, 0, pos.w, pos.z).normalize(),
-        ];
+    static GradEps = 1e-4;
+    static GradMats = [];
 
-        yy.copy(
-            yy.sub(xx.dup.sc(yy.ip(xx)))
-        ).normalize();
-        zz.copy(
-            zz.sub(xx.dup.sc(zz.ip(xx)))
-                .sub(yy.dup.sc(zz.ip(yy)))
-        ).normalize();
-
-        return V4.Σ(
-            xx.sc(this.sdf(pos.dup.fma(+ε, xx).normalize()) - this.sdf(pos.dup.fma(-ε, xx).normalize())),
-            yy.sc(this.sdf(pos.dup.fma(+ε, yy).normalize()) - this.sdf(pos.dup.fma(-ε, yy).normalize())),
-            zz.sc(this.sdf(pos.dup.fma(+ε, zz).normalize()) - this.sdf(pos.dup.fma(-ε, zz).normalize())),
-        ).normalize();
-
-        // const C = M4.Center(pos);
-        // const [
-        //     Xp, Yp, Zp,
-        //     Xn, Yn, Zn,
-        // ] = [
-        //     M4.MovX(+ε), M4.MovY(+ε), M4.MovZ(+ε),
-        //     M4.MovX(-ε), M4.MovY(-ε), M4.MovZ(-ε),
-        // ].map(M => M.rc(C));
-
-        // const G = V4.of(
-        //     this.sdf(Xp.ra(pos)) - this.sdf(Xn.ra(pos)),
-        //     this.sdf(Yp.ra(pos)) - this.sdf(Yn.ra(pos)),
-        //     this.sdf(Zp.ra(pos)) - this.sdf(Zn.ra(pos)),
-        // );
-
-        // G.sc(Calc.InvSqrt(G.x*G.x + G.y*G.y + G.z*G.z));
-
-        // return G;//.copy(M4.Along(pos).ra(G));
+    static set GradEps(ε) {
+        if (Calc.ApproxEq(1e-16)(ε)(Shape.GradEps)) return;
+        Shape.GradEps = ε;
+        Shape.GradMats = [];
     }
 
-    // TODO
-    snap(pos=V4.Ew(), ε=1e-2) {
-        const p = pos.dup;
-        for (let it = 0, d = this.dist(p); it < 100 && Calc.Abs(d) > ε; ++it) {
-            const G = this.grad(p);
-            p.copy(M4.Mov(G.x, G.y, G.z, -d/2).ra(p));
+    static GetGradMats() {
+        if (Shape.GradMats.length) return Shape.GradMats; 
+        Shape.GradMats = [
+            M4.MovX(+Shape.GradEps), M4.MovX(-Shape.GradEps),
+            M4.MovY(+Shape.GradEps), M4.MovY(-Shape.GradEps),
+            M4.MovZ(+Shape.GradEps), M4.MovZ(-Shape.GradEps),
+        ];
+        return Shape.GradMats;
+    }
+
+    grad(pos=V4.w, ε=Shape.GradEps) {
+        const [Xp, Xn, Yp, Yn, Zp, Zn] = Shape.GetGradMats();
+        return V4.of(
+            this.dist(Xp.ra(pos)) - this.dist(Xn.ra(pos)),
+            this.dist(Yp.ra(pos)) - this.dist(Yn.ra(pos)),
+            this.dist(Zp.ra(pos)) - this.dist(Zn.ra(pos)),
+            0,
+        ).sc(0.5/ε);
+    }
+
+    proj(pos=V4.Ew(), max_iters=5, dt=1, ε=Shape.GradEps) {
+        let d, p = pos.dup;
+        for (let i = 0; i < max_iters; ++i) {
+            if (Calc.Abs(d = this.dist(p)) <= ε) break;
+            const g = this.grad(p);
+            p.copy(M4.Mov(g.x, g.y, g.z, -d*dt).ra(p));
         }
         return p;
     }
@@ -107,7 +96,7 @@ class Path extends Shape {
     }
 };
 
-class Line extends Path {
+export class Line extends Path {
     constructor(name="Line") {
         super(name);
         this.sdf = p => PX.ra(p).dist(p);
@@ -119,7 +108,6 @@ class MotorPath extends Path {
         super(name);
     }
 };
-
 
 export class Sphere extends Shape {
     constructor(name="Sphere", radius=0) {
@@ -133,7 +121,7 @@ export class Horosphere extends Shape {
     constructor(name="Horosphere", radius=0) {
         super(name);
         this.radius = radius;
-        this.sdf = p => Calc.Log(p.z + p.w) - this.radius;
+        this.sdf = p => Calc.Log(p.w - p.x) - this.radius;
     }
 };
 
@@ -149,7 +137,7 @@ export class Orthocyl extends Shape {
     constructor(name="Orthocyl", radius=0) {
         super(name);
         this.radius = radius;
-        this.sdf = p => PK.ra(p).dist( ) - this.radius;
+        this.sdf = p => PK.ra(p).dist( ) - Calc.Abs(this.radius);
     }
 };
 
@@ -158,7 +146,7 @@ export class Halfspace extends Shape {
         super(name);
         this.radius = radius;
         this.sdf = p => (
-            (this.radius >= 0) ? (p.x >= 0 ? +1 : -1) : (p.x <= 0 ? -1 : +1)
+            (this.radius >= 0) ? (p.x >= 0 ? -1 : +1) : (p.x <= 0 ? +1 : -1)
         ) * PK.ra(p).dist(p) - this.radius;
     }
 };
@@ -175,6 +163,6 @@ export class Zone extends Shape {
     constructor(name="Zone", radius=0) {
         super(name);
         this.radius = radius;
-        this.sdf = p => PX.ra(p).dist( ) - this.radius;
+        this.sdf = p => PX.ra(p).dist( ) - Calc.Abs(this.radius);
     }
 };
