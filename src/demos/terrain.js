@@ -14,8 +14,8 @@ import { Ticker } from "../node/component/ticker.js";
 import * as KB from "../math/knuthbendix.js";
 import { WordTree } from "../node/scene/wordtree.js";
 import { VertexArray, IndexArray } from "../gpubuffer.js";
-import { ControllerManager } from "../node/component/controller.js";
 import { Orveyl } from "../orveyl.js";
+import { Orveyl3dController } from "../node/component/controllers/Orveyl3dController.js";
 
 const m = SI.m_to_au;
 SI.m_per_au = 256;
@@ -27,6 +27,10 @@ const map_pal_offset  = Orveyl.InitParams.get("p") ?? 0;
 
 const treasure_enabled = Orveyl.InitParams.get("n") ?? true;
 const treasure_N = treasure_enabled ? [3, 6, 9, 12][map_size] : 0;
+
+Orveyl.DefaultPlayer.attach(
+    new Orveyl3dController("3dController")
+);
 
 Orveyl.Menu.innerHTML = [
     `Size: ${[
@@ -132,7 +136,7 @@ Orveyl.DefaultPlayer.setRelative(
 );
 
 const camera_human_scale = false;
-ControllerManager.FluxScale = camera_human_scale ?
+Orveyl.DefaultPlayer.flux_scale = camera_human_scale ?
     m(SI.Ref.speed_mps.human_running) : undefined;
 
 const sky_col = V4.rgb(1/16, 0, 1/5);

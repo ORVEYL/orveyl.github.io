@@ -12,6 +12,12 @@ import { Geometry } from "../node/scene/geometry.js";
 import { VertexArray, IndexBuffer, Vertex } from "../gpubuffer.js";
 import { Orveyl } from "../orveyl.js";
 
+import { Orveyl3dController } from "../node/component/controllers/Orveyl3dController.js";
+
+Orveyl.DefaultPlayer.attach(
+    new Orveyl3dController("3dController")
+);
+
 const encode = obj => btoa(JSON.stringify(obj));
 const decode = str => JSON.parse(atob(str));
 

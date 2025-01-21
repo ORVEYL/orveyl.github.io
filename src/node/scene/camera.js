@@ -9,8 +9,8 @@ export class Camera extends Scene {
 
     static Manager = new CameraManager();
 
-    constructor(name="Camera", parent=null, relativeTf) {
-        super(name, parent, relativeTf);
+    constructor(name="Camera") {
+        super(name);
     }
 
 };

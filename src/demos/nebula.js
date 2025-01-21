@@ -13,6 +13,12 @@ import { WordTree } from "../node/scene/wordtree.js";
 import { VertexArray } from "../gpubuffer.js";
 import { Orveyl } from "../orveyl.js";
 
+import { Orveyl3dController } from "../node/component/controllers/Orveyl3dController.js";
+
+Orveyl.DefaultPlayer.attach(
+    new Orveyl3dController("3dController")
+);
+
 const [P,Q,R] = [3, 4, 2];
 const [dX, dZ] = [
     Orveyl.InitParams.get("dX") ?? 0.78,

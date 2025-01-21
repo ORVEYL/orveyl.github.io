@@ -16,6 +16,12 @@ import { WordTree, Chamber } from "../node/scene/wordtree.js";
 import { VertexArray, IndexBuffer, Vertex } from "../gpubuffer.js";
 import { Orveyl } from "../orveyl.js";
 
+import { Orveyl3dController } from "../node/component/controllers/Orveyl3dController.js";
+
+Orveyl.DefaultPlayer.attach(
+    new Orveyl3dController("3dController")
+);
+
 class TriGroup extends WordTree {
     constructor(name, PQR, scale, depth, bailout) {
         const [P,Q,R] = PQR;

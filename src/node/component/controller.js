@@ -1,18 +1,19 @@
 // adc :: controller.js
 
 import { Component } from "../component.js";
-import { Manager } from "../system/manager.js";
+import { System } from "../system.js";
 
-export class ControllerManager extends Manager {
-    static FluxScale = undefined;
-};
+class ControllerSystem extends System {};
 
 export class Controller extends Component {
 
-    static Manager = new ControllerManager();
+    static System = new ControllerSystem();
     
-    constructor(name="Controller", parent=null) {
-        super(name, parent);
+    constructor(name="Controller") {
+        super(name);
+        Controller.System.add(this);
     }
+
+    update(input, dt) {}
 
 };

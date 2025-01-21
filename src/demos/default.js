@@ -14,6 +14,12 @@ import { Text } from "../node/scene/text.js";
 import { Ticker } from "../node/component/ticker.js"
 import { Sphere } from "../node/scene/shape.js";
 
+import { Orveyl3dController } from "../node/component/controllers/Orveyl3dController.js";
+
+Orveyl.DefaultPlayer.attach(
+    new Orveyl3dController("3dController")
+);
+
 Orveyl.Menu.innerHTML = [
 `<q>Out of nothing, I have created a strange new universe.</q> -- János Bolyai`,
 ``,

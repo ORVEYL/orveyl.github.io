@@ -2,8 +2,7 @@
 
 import * as Calc from "./math/calc.js";
 import { π, Geom, Rand } from "./math/calc.js";
-import { V4, B4, M4 } from "./math/vector.js";
-import { SI } from "./math/si.js";
+import { V4, M4 } from "./math/vector.js";
 
 import {
     F32Buffer, Vertex, VertexBuffer,
@@ -14,9 +13,10 @@ import { Input } from "./input.js";
 import { Scene } from "./node/scene.js";
 import { Gizmo } from "./node/scene/gizmo.js";
 import { Camera } from "./node/scene/camera.js";
-import { Controller, ControllerManager } from "./node/component/controller.js";
+import { Controller } from "./node/component/controller.js";
 import { Ticker } from "./node/component/ticker.js";
 import { Geometry, GeometryCollector } from "./node/scene/geometry.js";
+import { OrveylDefaultController } from "./node/component/controllers/OrveylDefaultController.js";
 
 export class Orveyl {
 
@@ -53,16 +53,17 @@ export class Orveyl {
 
     static DrawCache = {};
 
-    static Step = -1;
+    static Tick = -1;
     static T0 = 0;//Date.now();
     static TPrev = Orveyl.T0;
     static T = Orveyl.T0;
     static DT = 0;
 
-    static Input = new Input(Orveyl.HandleInput);
+    static Input = new Input(null);
 
     static Root =  null;
     static DefaultPlayer = null;
+    static DefaultController = null;
 
     static InitBreadcrumb = sc => {
         new Gizmo(`Gizmo[${sc.name}]`).attachTo(sc);
@@ -320,7 +321,7 @@ export class Orveyl {
         Orveyl.GPUBuffers.Time = new F32Buffer(
             Orveyl.Device, "Orveyl.GPUBuffers.Time",
             GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            new Float32Array([Orveyl.Step, Orveyl.T]),
+            new Float32Array([Orveyl.Tick, Orveyl.T]),
         ).write();
 
         Orveyl.GPUBuffers.Sky = new F32Buffer(
@@ -844,53 +845,46 @@ export class Orveyl {
         Orveyl.Root = new Scene("OrveylRoot");
         Orveyl.Root.attach(Scene.BreadcrumbRoot);
 
-        Orveyl.DefaultPlayer = new Scene("DefaultPlayer").attachTo(Orveyl.Root);
+        Orveyl.DefaultPlayer = new Scene("DefaultPlayer")
+            .attachTo(Orveyl.Root);
 
-        Controller.Manager.add(
-            new Controller("DefaultController").attachTo(Orveyl.DefaultPlayer)
-        ).useIndex(0);
+        Orveyl.DefaultController = new OrveylDefaultController("DefaultController")
+            .attachTo(Orveyl.DefaultPlayer);
 
-        const OrbitCameraRoot = new Scene("OrbitCameraRoot").attachTo(Orveyl.DefaultPlayer);
-        OrbitCameraRoot.attach(
-            new Ticker("OrbitCamAnim", a=>{
-                a.parent.matrix.copy(
-                    M4.Euler(Orveyl.T/3000, π/8)
-                );
-            }).play(),
-        );
+        const OrbitCameraRoot = new Scene("OrbitCameraRoot")
+            .attachTo(Orveyl.DefaultPlayer)
+            .attach(
+                new Ticker("OrbitCamAnim", a=>{
+                    a.parent.matrix.copy(
+                        M4.Euler(Orveyl.T/3000, π/8)
+                    );
+                }).play(),
+            );
 
-        const OrbitCameraPivot = new Scene(
-            "OrbitCameraPivot", M4.MovX(-2)
-        ).attachTo(OrbitCameraRoot);
+        const OrbitCameraPivot = new Scene("OrbitCameraPivot")
+            .attachTo(OrbitCameraRoot, M4.MovX(-2));
 
         Camera.Manager.add(
             new Camera("DefaultCamera").attachTo(Orveyl.DefaultPlayer),
 
-            new Camera("TopDownCamera",
-                M4.rm(
-                    M4.MovZ(+3/2), M4.RotJ(π/2)
-                )
-            ).attachTo(Orveyl.DefaultPlayer),
+            new Camera("TopDownCamera")
+                .attachTo(Orveyl.DefaultPlayer)
+                .rm(M4.MovZ(+3/2), M4.RotJ(π/2)),
 
-            new Camera("SidescrollCamera",
-                M4.rm(
-                    M4.RotI(π/2), M4.MovX(-1)
-                )
-            ).attachTo(Orveyl.DefaultPlayer),
+            new Camera("SidescrollCamera")
+                .attachTo(Orveyl.DefaultPlayer)
+                .rm(M4.RotI(π/2), M4.MovX(-1)),
 
             new Camera("OrbitCamera").attachTo(OrbitCameraPivot),
 
-            new Camera("XPeekCamera",
-                M4.rm(
-                    M4.MovX(-0.5)
-                )
-            ).attachTo(Orveyl.DefaultPlayer),
+            new Camera("XPeekCamera")
+                .attachTo(Orveyl.DefaultPlayer)
+                .rm(M4.MovX(-0.5)),
 
-            new Camera("ZPeekCamera",
-                M4.rm(
-                    M4.MovZ(0.01)
-                )
-            ).attachTo(Orveyl.DefaultPlayer),
+            new Camera("ZPeekCamera")
+                .attachTo(Orveyl.DefaultPlayer)
+                .rm(M4.MovZ(0.01)),
+
         ).useIndex(Orveyl.InitParams.get("cam") ?? 0);
 
         Gizmo.InitDefaults();
@@ -943,110 +937,6 @@ export class Orveyl {
         Orveyl.Input.addGamepadAction("analogRz", Input.Gamepad.RZ);
         Orveyl.Input.addGamepadAction("analogRb", Input.Gamepad.RB);
         Orveyl.Input.addGamepadAction("analogRc", Input.Gamepad.RC);
-    }
-
-    static HandleInput(input, dt) {
-
-        if (input.tick("sceneIndex-") == 1) {
-            Scene.Manager.usePrev();
-        }
-        if (input.tick("sceneIndex+") == 1) {
-            Scene.Manager.useNext();
-        }
-
-        if (input.tick("screenshot") == 1) {
-            const link = document.createElement("a");
-            link.download = `orveyl_${Date.now()}.png`;
-            link.href = Orveyl.Canvas
-                .toDataURL("image/png")
-                .replace("image/png", "image/octet-stream");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        if (input.curr("alt")) {
-            if (input.tick("enter") == 1) {
-                Orveyl.ToggleImmersiveMode();
-            }
-        }
-
-        if (input.curr("shift")) {
-            if (input.tick("camReset") == 1) {
-                if (Scene.Breadcrumb) {
-                    Controller.Manager.active?.parent?.matrix?.copy(
-                        Scene.Breadcrumb.world_from_local
-                    );
-                } else {
-                    Controller.Manager.active?.parent?.matrix?.id;
-                }
-            }
-
-            if (input.tick("camIndex-") == 1) {
-                Controller.Manager.usePrev();
-            }
-            if (input.tick("camIndex+") == 1) {
-                Controller.Manager.useNext();
-            }
-
-            // remove selected breadcrumb
-            if (input.tick("space") == 1) {
-                if (Scene.Breadcrumb) {
-                    const old = Scene.Breadcrumb;
-                    Scene.Breadcrumb = old?.parent;
-                    old?.detach();
-                    
-                    if (Scene.Breadcrumb == Scene.BreadcrumbRoot) {
-                        Scene.Breadcrumb = null;
-                    }
-
-                    console.log("Selected breadcrumb:", Scene.Breadcrumb);
-                }
-            }
-        } else {
-            if (input.tick("camReset") == 1) {
-                Controller.Manager.active?.parent?.matrix?.id;
-            }
-
-            if (input.tick("camIndex-") == 1) {
-                Camera.Manager.usePrev();
-            }
-            if (input.tick("camIndex+") == 1) {
-                Camera.Manager.useNext();
-            }
-
-            // add to selected breadcrumb
-            if (input.tick("space") == 1) {
-                const prev = Scene.Breadcrumb ?? Scene.BreadcrumbRoot;
-
-                Scene.Breadcrumb = new Scene(
-                    Rand.HexId(2)(),
-                    prev.local_from_other(Controller.Manager.active.parent)
-                ).attachTo(prev);
-
-                if (Orveyl.InitBreadcrumb) Orveyl.InitBreadcrumb(Scene.Breadcrumb);
-                console.log("Added breadcrumb: ", Scene.Breadcrumb);
-            }
-        }
-
-        const ds = B4.of(
-            input.cmp("i+", "i-") - input.curr("analogRx"),
-            input.cmp("j+", "j-") + input.curr("analogRy"),
-            input.cmp("k+", "k-") - input.curr("analogLb") + input.curr("analogRb"),
-            input.cmp("x+", "x-") - input.curr("analogLy"),
-            input.cmp("y+", "y-") - input.curr("analogLx"),
-            input.cmp("z+", "z-") -(input.curr("analogRz") - input.curr("analogLz")),
-        ).sc(dt/1000);
-
-        if (input.tick("analogRc")) ds.scSpin(3.0);
-        if (input.tick("analogLc")) ds.scFlux(3.0);
-        if (Geom.Sig > 0) ds.scFlux(-1);
-
-        if (ControllerManager.FluxScale) {
-            ds.scFlux(ControllerManager.FluxScale);
-        }
-
-        Controller.Manager.active?.parent?.rm(ds.exp());
     }
 
     static InitScene() {
@@ -1124,13 +1014,16 @@ export class Orveyl {
     static Update(t_curr) {
         requestAnimationFrame(Orveyl.Update);
 
-        ++Orveyl.Step;
+        ++Orveyl.Tick;
         Orveyl.TPrev = Orveyl.T;
         Orveyl.T = t_curr;
         Orveyl.DT = Orveyl.T - Orveyl.TPrev;
 
-        // update systems
+        // update input state
         Orveyl.Input.update(Orveyl.DT);
+
+        // update systems
+        Controller.System.update(Orveyl.Input, Orveyl.DT);
         Ticker.System.update(Orveyl.DT);
 
         // update uniforms
@@ -1142,7 +1035,7 @@ export class Orveyl {
             ...M4.id,
         ]).write();
 
-        Orveyl.GPUBuffers.Time.set([Orveyl.Step, Orveyl.T], 0).write();
+        Orveyl.GPUBuffers.Time.set([Orveyl.Tick, Orveyl.T], 0).write();
 
         Orveyl.Draw();
     }

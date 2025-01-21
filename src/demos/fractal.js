@@ -6,6 +6,12 @@ import * as Calc from "../math/calc.js";
 import { Complex, M4 } from "../math/vector.js";
 import { Orveyl } from "../orveyl.js";
 
+import { Orveyl3dController } from "../node/component/controllers/Orveyl3dController.js";
+
+Orveyl.DefaultPlayer.attach(
+    new Orveyl3dController("3dController")
+);
+
 let polar_mode = false; 
 let complex_input;
 let complex_write;
