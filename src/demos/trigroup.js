@@ -195,6 +195,8 @@ const ceilZ = Orveyl.InitParams.get("ceilZ") ?? 0;
 const offset = Orveyl.InitParams.get("offset") ?? 1.5;
 const scale = Orveyl.InitParams.get("scale") ?? 1;
 const skyCol = Orveyl.InitParams.get("skyCol") ?? "000000";
+const fogAmt = Orveyl.InitParams.get("fogAmt") ?? 0;
+const fogCol = Orveyl.InitParams.get("fogCol") ?? "000000";
 
 const depth = Orveyl.InitParams.get("depth") ?? 16;
 const bailout = Orveyl.InitParams.get("bailout") ?? 3;
@@ -294,6 +296,8 @@ Orveyl.Menu.innerHTML = `<form>` + [
     `Offset: <input id="offset" type="number" step="0.1" style="width:3em" value="${offset}">`,
     `Scale: <input id="scale" type="number" step="0.1" style="width:4em" value="${scale}">`,
     `Sky Color: <input id="skyCol" type="color" value=#${skyCol}>`,
+    `Fog Amount: <input id="fogAmt" type="number" step="0.001" style="width:4em" value="${fogAmt}">`,
+    `Fog Color: <input id="fogCol" type="color" value=#${fogCol}>`,
     ``,
     `Depth: <input id="depth" type="number" min="0" step="1" style="width:2.5em" value="${depth}">`,
     `Bailout: <input id="bailout" type="number" min="0" step="1" style="width:2.5em" value="${bailout}"> seconds`,
@@ -321,6 +325,8 @@ document.getElementById("generate").onclick = () => {
         `offset=${document.getElementById("offset").value}`,
         `scale=${document.getElementById("scale").value}`,
         `skyCol=${document.getElementById("skyCol").value.slice(1)}`,
+        `fogAmt=${document.getElementById("fogAmt").value}`,
+        `fogCol=${document.getElementById("fogCol").value.slice(1)}`,
 
         `depth=${document.getElementById("depth").value}`,
         `bailout=${document.getElementById("bailout").value}`,
@@ -336,9 +342,27 @@ const set_sky = rrggbb => {
     );
 };
 
+const set_fog = (rrggbb, a) => {
+    const [_, r, g, b] = rrggbb.match(/^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+    Orveyl.SetFog(
+        parseInt(r,16)/255,
+        parseInt(g,16)/255,
+        parseInt(b,16)/255,
+        a
+    );
+};
+
 set_sky(skyCol);
 document.getElementById("skyCol").addEventListener("change", ev => {
     set_sky(ev.target.value.slice(1));
+}, false);
+
+set_fog(fogCol, fogAmt);
+document.getElementById("fogCol").addEventListener("change", ev => {
+    set_fog(ev.target.value.slice(1), document.getElementById("fogAmt").value);
+}, false);
+document.getElementById("fogAmt").addEventListener("change", ev => {
+    set_fog(document.getElementById("fogCol").value.slice(1), ev.target.value);
 }, false);
 
 const Tg = new TriGroup("TriGroup", [P,Q,R], scale, depth, bailout);

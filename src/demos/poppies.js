@@ -148,6 +148,7 @@ const ground_template = new VertexArray().push(
 
 const sky = V4.of(0.5, 0.5, 1, 1);
 Orveyl.SetSky(sky.x, sky.y, sky.z);
+Orveyl.SetFog(sky.x+0.1, sky.y+0.2, sky.z, 1/64);
 
 const star_va = new VertexArray();
 const flower_va = new VertexArray();

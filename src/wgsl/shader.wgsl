@@ -23,10 +23,11 @@ struct uTimeStruct {
 @group(0) @binding(2) var<uniform> uTime: uTimeStruct;
 @group(0) @binding(3) var<uniform> uInstMats: array<mat4x4f, 1024>;
 @group(0) @binding(4) var<uniform> uSky: array<vec4f, 16>;
-@group(0) @binding(5) var<uniform> uTint: vec4f;
+@group(0) @binding(5) var<uniform> uFog: vec4f;
+@group(0) @binding(6) var<uniform> uTint: vec4f;
 
-@group(0) @binding(6) var uTexSampler : sampler;
-@group(0) @binding(7) var uTexView: texture_2d<f32>;
+@group(0) @binding(7) var uTexSampler : sampler;
+@group(0) @binding(8) var uTexView: texture_2d<f32>;
 
 @group(1) @binding(0) var<uniform> objMat: mat4x4f;
 @group(1) @binding(1) var<uniform> objTint: vec4f;
@@ -53,8 +54,21 @@ fn Dist(a : vec4f, b : vec4f) -> f32 {
     let ab = Mip(a,b);
     let bb = Mip(b,b);
 
-    let CC = (ab*ab)/(aa*bb);
-    return acosh(sqrt(abs(CC)));
+    let CC = (ab*ab)/(aa*bb); 
+    let SS = CC-1.0;
+
+    let C = sqrt(abs(CC));
+    let S = sqrt(abs(SS));
+
+    return select(
+        log(C+S),
+        select(
+            asin(S),
+            select(acosh(C), asinh(S), bb>0),
+            CC >= 1.0,
+        ),
+        sign(aa*bb) >= 0,
+    );
 }
 
 fn SphDist(a : vec4f, b : vec4f) -> f32 {
@@ -63,7 +77,7 @@ fn SphDist(a : vec4f, b : vec4f) -> f32 {
     let bb = dot(b,b);
 
     let CC = (ab*ab)/(aa*bb);
-    return acos(sqrt(abs(CC)));
+    return acos(sqrt(CC));
 }
 
 fn Outer(a : vec4f, b : vec4f) -> mat4x4f {
@@ -733,10 +747,9 @@ fn fragDeferred(
     //let material = textureLoad(gMat, ifPos, 0);
     //return vec4f(f32(material.x)/255.0, f32(material.y)/255.0, 0, 1);
 
-    // let viewpos = mExchange * uMat.ViewFromWorld * pos;
-    // let dist = atanh(length(viewpos.xyz));
-    // let sd = sinh(dist);
-    // let fog = 1 / (sd*sd+1);
+    let viewpos = uMat.ViewFromWorld * pos;
+    let td = length(viewpos.xyz/viewpos.w);
+    let fog = select(0, pow(td, 1/uFog.a), uFog.a>0);
 
     let col = textureLoad(gCol, ifPos, 0);
 
@@ -744,5 +757,6 @@ fn fragDeferred(
     //let depthk = (1-depth) * 20.0;
     //return vec4f(depthk, 0, 0, 1);
 
-    return vec4f(col.rgb, 1);
+
+    return vec4f(mix(col.rgb, uFog.rgb, fog), 1);
 }

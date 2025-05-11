@@ -2,8 +2,6 @@
 import * as Calc from "./calc.js";
 import {
     F64Vec, F64Mat,
-    Sqrt,
-    Exp, Log,
     Wrap,
     Geom,
 } from "./calc.js";
@@ -38,18 +36,18 @@ export class Complex extends F64Vec {
 
     static conj(z) { return Complex.of(z.re, -z.im); }
     static quad(z) { return z.re*z.re + z.im*z.im; }
-    static abs (z) { return Sqrt(Complex.quad(z)); }
+    static abs (z) { return Calc.Sqrt(Complex.quad(z)); }
     static arg (z) { return Geom.Sph.TanInv(z.re, z.im); }
 
     static exp(z) {
         return Complex.of(
             ...Geom.Sph.Exp(z.im),
-        ).sc(Exp(z.re));
+        ).sc(Calc.Exp(z.re));
     }
 
     static log(z) {
         return Complex.of(
-            Log(z.quad) / 2,
+            Calc.Log(z.quad) / 2,
             z.arg,
         );
     }
@@ -89,12 +87,12 @@ export class Complex extends F64Vec {
     get exp() {
         return this.set(
             ...Geom.Sph.Exp(this.im),
-        ).sc(Exp(this.re));
+        ).sc(Calc.Exp(this.re));
     }
 
     get log() {
         return this.set(
-            Log(this.quad) / 2,
+            Calc.Log(this.quad) / 2,
             this.arg,
         );
     }
@@ -231,7 +229,23 @@ export class V4 extends F64Vec {
     }
     quad(v=V4.w) { return V4.quad(this, v); }
 
-    static dist(a, b=V4.w) { return Geom.CosInv(Calc.Root(V4.quad(a,b))); }
+    static dist(a, b=V5.a) {
+        if (Geom.Sig >= 0) return Geom.CosInv(Calc.Root(V4.quad(a,b)));
+
+        const [aa, ab, bb] = [a.ip(a), a.ip(b), b.ip(b)];
+        const cc = (ab*ab)/(aa*bb);
+        const ss = cc-1.0;
+        
+        const [c,s] = [cc, ss].map(Calc.Root);
+        
+        return (Calc.Sgn(aa*bb) >= 0.0) ?
+            (cc >= 1.0) ?
+                (bb <= 0.0) ?
+                    Math.acosh(c) :
+                    Math.asinh(s) :
+                Math.asin(s) :
+            Math.log(c+s);
+    }
     dist(v=V4.w) { return V4.dist(this, v); }
 
     static lerp = (v0, v1) => t => {

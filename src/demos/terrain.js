@@ -141,6 +141,7 @@ Orveyl.DefaultPlayer.flux_scale = camera_human_scale ?
 
 const sky_col = V4.rgb(1/16, 0, 1/5);
 Orveyl.SetSky(sky_col.x, sky_col.y, sky_col.z);
+Orveyl.SetFog(sky_col.x, sky_col.y, sky_col.z, 1/50);
 
 const ground_col = V4.rgb(1/2, 1/4, 1/9);
 const stone_col = V4.rgb(1/8, 1/9, 1/6);

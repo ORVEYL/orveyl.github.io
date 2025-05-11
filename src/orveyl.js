@@ -214,7 +214,7 @@ export class Orveyl {
     static async InitShaderModules() {
         const get_shader = async (fname) => await fetch(fname).then(resp => resp.text());
         const create_shader_module = async (label, fname) => Orveyl.Device.createShaderModule({
-            label: `AbsGPU.ShaderModules.${label}`,
+            label: `Orveyl.ShaderModules.${label}`,
             code: await get_shader(fname),
         });
 
@@ -339,6 +339,12 @@ export class Orveyl {
             ]),
         ).write();
 
+        Orveyl.GPUBuffers.Fog = new F32Buffer(
+            Orveyl.Device, "Orveyl.GPUBuffers.Fog",
+            GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            new Float32Array([0,0,0,0]),
+        ).write();
+
         Orveyl.GPUBuffers.Tint = new F32Buffer(
             Orveyl.Device, "Orveyl.GPUBuffers.Tint",
             GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -412,20 +418,26 @@ export class Orveyl {
                     buffer: { type: "uniform" },
                 },
 
-                { // geom tint color params
+                { // fog params
                     binding: 5,
                     visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
                     buffer: { type: "uniform" },
                 },
 
-                { // texture sampler
+                { // geom tint color params
                     binding: 6,
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
+                    buffer: { type: "uniform" },
+                },
+
+                { // texture sampler
+                    binding: 7,
                     visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
                     sampler: { type: "non-filtering" }
                 },
 
                 { // texture view
-                    binding: 7,
+                    binding: 8,
                     visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
                     texture: { sampleType: "unfilterable-float" }
                 },
@@ -441,9 +453,10 @@ export class Orveyl {
                 { binding: 2, resource: { buffer: Orveyl.GPUBuffers.Time.gpubuf } },
                 { binding: 3, resource: { buffer: Orveyl.GPUBuffers.InstanceMatrices.gpubuf } },
                 { binding: 4, resource: { buffer: Orveyl.GPUBuffers.Sky.gpubuf } },
-                { binding: 5, resource: { buffer: Orveyl.GPUBuffers.Tint.gpubuf } },
-                { binding: 6, resource: Orveyl.Textures.Samplers[0] },
-                { binding: 7, resource: Orveyl.Textures.Views[0] },
+                { binding: 5, resource: { buffer: Orveyl.GPUBuffers.Fog.gpubuf } },
+                { binding: 6, resource: { buffer: Orveyl.GPUBuffers.Tint.gpubuf } },
+                { binding: 7, resource: Orveyl.Textures.Samplers[0] },
+                { binding: 8, resource: Orveyl.Textures.Views[0] },
             ],
         });
 
@@ -1008,6 +1021,10 @@ export class Orveyl {
             Es[0],Es[1],0,0,
             Es[2], Calc.Floor(Palette), Iters, Orveyl.SkyMode.Complex,
         ]).write();
+    }
+
+    static SetFog(r,g,b,a=1) {
+        Orveyl.GPUBuffers.Fog.set([r,g,b,a]).write();
     }
 
     ////////////////////////////////////////////////////////////////////////////////
