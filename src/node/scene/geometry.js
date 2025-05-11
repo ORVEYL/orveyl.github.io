@@ -16,12 +16,12 @@ export class Geometry extends Scene {
 
         this.ob = {
             mat: new F32Buffer(
-                Orveyl.Device, "`${name}.ob.mat`",
+                Orveyl.Device, `${name}.ob.mat`,
                 GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
                 new Float32Array(16),
             ),
             tint: new F32Buffer(
-                Orveyl.Device, "`${name}.ob.mat`",
+                Orveyl.Device, `${name}.ob.mat`,
                 GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
                 new Float32Array(4),
             ),
@@ -64,6 +64,15 @@ export class Geometry extends Scene {
 
         this.ob?.mat.set(this.world_from_local, 0).write();
         this.ob?.tint.set(this.tint ?? [1,1,1,1], 0).write();
+
+        this.bg = Orveyl.Device.createBindGroup({
+            label: `${this.name}.bg`,
+            layout: Orveyl.BindGroupLayouts.ObjectData,
+            entries: [
+                { binding: 0, resource: { buffer: this.ob.mat.gpubuf } },
+                { binding: 1, resource: { buffer: this.ob.tint.gpubuf } },
+            ],
+        });
 
         return this;
     }

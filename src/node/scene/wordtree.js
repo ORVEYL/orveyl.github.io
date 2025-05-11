@@ -1,7 +1,7 @@
 // adc :: wordtree.js
 
 import { Scene } from "../scene.js";
-import { Wrap } from "/src/math/calc.js";
+import { Wrap, Rand } from "/src/math/calc.js";
 import * as KB from "/src/math/knuthbendix.js";
 
 export class Chamber extends Scene {
@@ -69,6 +69,8 @@ export class WordTree extends Scene {
 
         this.sys = sys;
         Object.freeze(this.sys);
+
+        this.weights = new Map();
 
         this.clear();
     }
@@ -188,7 +190,8 @@ export class WordTree extends Scene {
             while (words.length) {
                 const word = words.pop();
                 for (let g of this.sys.gen) {
-                    //if (["X", "Y", "Z"].includes(g)) continue; // TODO: weights
+                    // TODO: PROPER weights lol
+                    if (this.weights.has(g) && this.weights.get(g) < Rand.Unit()) continue;
                     if (g == this.sys.invert(word.charAt(word.length-1))) continue;
                     const wg = this.sys.reduce(word+g);
                     if (this.add(wg, onAdd)) {

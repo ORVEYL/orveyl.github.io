@@ -1,54 +1,16 @@
 // adc :: vector.js
-
 import * as Calc from "./calc.js";
 import {
-    Mut, Zip, MutZip, Outer,
-    Add, Sub, Mul, Div, LtEq, Sqrt, Root,
-    Σ, Exp, Log,
-    Wrap, IsIterable,
+    F64Vec, F64Mat,
+    Sqrt,
+    Exp, Log,
+    Wrap,
     Geom,
 } from "./calc.js";
 
 ////////////////////////////////////////////////////////////////////////////////
-// BASE VECTOR :: R^N
-export class Vector extends Float64Array {
-    constructor(N) { super(N); }
-    static new(N) { return new Vector(N); }
-    get dup() { return Vector.from(this); }
-
-    get json() { return JSON.stringify(Array.from(this)); }
-    set json(src) { this.copy(JSON.parse(src)); }
-
-    copy(src, offset=0) { super.set(src, offset); return this; }
-    map(callbackFn, thisArg) {
-        return Vector.new(this.length).copy(super.map(callbackFn, thisArg));
-    }
-
-    eq(v, ε=1e-12) { return Zip(AbsErr)(this)(v).every(LtEq(ε)); }
-
-    sc(s) { return Mut(Mul(s))(this); }
-    get neg() { return this.sc(-1); }
-
-    add(v) { return IsIterable(v) ? MutZip(Add)(this)(v) : Mut(Add(v))(this); }
-    sub(v) { return IsIterable(v) ? MutZip(Sub)(this)(v) : Mut(Sub(v))(this); }
-    mul(v) { return IsIterable(v) ? MutZip(Mul)(this)(v) : Mut(Mul(v))(this); }
-    div(v) { return IsIterable(v) ? MutZip(Div)(this)(v) : Mut(Div(v))(this); }
-
-    sum (...vs) { for (let v of vs) this.add(v); return this; }
-    prod(...vs) { for (let v of vs) this.mul(v); return this; }
-    Σ(...vs) { return this.sum (...vs); }
-    Π(...vs) { return this.prod(...vs); }
-
-    fma(s, v) { return MutZip(Fma(s))(this)(v); }
-    mix(v, t) { return this.sc(1-t).fma(t, v); }
-
-    ip(v) { return Σ(Zip(Mul)(this)(v)); }
-    op(v) { return Vector.new(this.length * v.length).copy(Outer(Mul)(this)(v).flat()); }
-};
-
-////////////////////////////////////////////////////////////////////////////////
 // COMPLEX :: R^2
-export class Complex extends Vector {
+export class Complex extends F64Vec {
     constructor() { super(2); }
     static get new() { return new Complex(); }
     get dup() { return Complex.from(this); }
@@ -158,9 +120,9 @@ export class Complex extends Vector {
 
 ////////////////////////////////////////////////////////////////////////////////
 // GEOMETRIC POINT / PLANE :: R^4
-export class V4 extends Vector {
-    constructor() { super(4); }
-    static get new() { return new V4(); }
+export class V4 extends F64Vec {
+    static get new() { return new V4(new ArrayBuffer(8*4), 0); }
+    static view(src, offset) { return new V4(src, offset, 4); }
     get dup() { return V4.from(this); }
 
     set(x, y, z, w) { this[0]=x; this[1]=y; this[2]=z; this[3]=w; return this; }
@@ -188,6 +150,11 @@ export class V4 extends Vector {
     get z() { return this[2]; } set z(s) { this[2] = s; }
     get w() { return this[3]; } set w(s) { this[3] = s; }
 
+    get xyz() { return F64Vec.new(3).copy([this.x, this.y, this.z]); }
+
+    sq() { return this.ip(this); }
+    ideal() { return this.setW(Calc.Root(this.xyz.sq())); }
+
     sc(s)    { this[0]*=s; this[1]*=s; this[2]*=s; this[3]*=s; return this; }
     scXYZ(s) { this[0]*=s; this[1]*=s; this[2]*=s;             return this; }
     scW(s)   {                                     this[3]*=s; return this; }
@@ -195,9 +162,6 @@ export class V4 extends Vector {
     get neg()    { return this.sc(-1); }
     get negXYZ() { return this.scXYZ(-1); }
     get negW()   { return this.scW(-1); }
-
-    normalize() { return this.sc(Calc.InvRoot(this.ip(this))); }
-    get norm() { return this.dup.normalize(); }
 
     get T() { return this.scW(Geom.Sig); }
 
@@ -222,9 +186,6 @@ export class V4 extends Vector {
         this[3]+=s*v[3];
         return this;
     }
-    
-    mix(v, t) { return this.sc(1-t).fma(t, v); }
-    static mix = (v0, v1) => t => v0.dup.mix(v1, t);
 
     ip(v) {
         return (
@@ -237,11 +198,6 @@ export class V4 extends Vector {
 
     op(v) {
         return M4.of(
-            // this[0]*v[0]  , this[1]*v[0]  , this[2]*v[0]  , this[3]*v[0]  ,
-            // this[0]*v[1]  , this[1]*v[1]  , this[2]*v[1]  , this[3]*v[1]  ,
-            // this[0]*v[2]  , this[1]*v[2]  , this[2]*v[2]  , this[3]*v[2]  ,
-            // this[0]*v[3]*S, this[1]*v[3]*S, this[2]*v[3]*S, this[3]*v[3]*S,
-
             this[0]*v[0], this[0]*v[1], this[0]*v[2], this[0]*v[3]*Geom.Sig,
             this[1]*v[0], this[1]*v[1], this[1]*v[2], this[1]*v[3]*Geom.Sig,
             this[2]*v[0], this[2]*v[1], this[2]*v[2], this[2]*v[3]*Geom.Sig,
@@ -260,32 +216,8 @@ export class V4 extends Vector {
         ).sc(1/2);
     }
 
-    lm(v) {
-        // return Q4.Es(
-        //     this.ip(v),
-        //     -this[0]*v[1] +this[1]*v[0],
-        //     -this[2]*v[0] +this[0]*v[2],
-        //     -this[1]*v[2] +this[2]*v[1],
-        //     -this[3]*v[0] +this[0]*v[3],
-        //     -this[3]*v[1] +this[1]*v[3],
-        //     -this[3]*v[2] +this[2]*v[3],
-        // );
-    }
-
-    rm(v) {
-        // return Q4.Es(
-        //     this.ip(v),
-        //     this[0]*v[1] -this[1]*v[0],
-        //     this[2]*v[0] -this[0]*v[2],
-        //     this[1]*v[2] -this[2]*v[1],
-        //     this[3]*v[0] -this[0]*v[3],
-        //     this[3]*v[1] -this[1]*v[3],
-        //     this[3]*v[2] -this[2]*v[3],
-        // );
-    }
-
-    la(M) { return this.copy(M.ra(this)); }
-    ra(M) { return this.copy(M.la(this)); }
+    la(L) { return M4.mv(L, this.dup, this); }
+    ra(R) { return M4.vm(this.dup, R, this); }
 
     ips (...vs) { return vs.map(this.ip, this); }
     ops (...vs) { return vs.map(this.op, this); }
@@ -308,11 +240,8 @@ export class V4 extends Vector {
 
     lerp(v, t) {
         const d = this.dist(v);
-        const [s0, s1] = [
-            Geom.Sin((1-t)*d),
-            Geom.Sin(   t *d),
-        ];
-        return this.sc(s0).fma(s1, v).sc(1/Geom.Sin(d));
+        const [s0, s1, sd] = [(1-t)*d, t*d, d].map(Geom.Sin);
+        return this.sc(s0).fma(s1, v).sc(1/sd);
     }
 
     static bary = (A,B,C) => (wA, wB, wC) => {
@@ -320,13 +249,13 @@ export class V4 extends Vector {
             A.dup.sc(wA),
             B.dup.sc(wB),
             C.dup.sc(wC),
-        ).normalize();
+        ).unit();
     }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 // GEOMETRIC LINE :: R^6
-export class B4 extends Vector {
+export class B4 extends F64Vec {
     constructor() { super(6); }
     static get new() { return new B4(); }
     get dup() { return B4.from(this); }
@@ -421,8 +350,15 @@ export class B4 extends Vector {
         return this;
     }
 
-    mix(b, t) { return this.sc(1-t).fma(t, b); }
-    static mix = (b0, b1) => t => b0.dup.mix(b1, t);
+    // ip(b) {
+    //     return (this.X*b.X + this.Y*b.Y + this.Z*b.Z)
+    //           -(this.i*b.i + this.j*b.j + this.k*b.k);
+    // }
+
+    // op(b) {
+    //     return this.i*b.Z + this.j*b.Y + this.k*b.X +
+    //            this.X*b.k + this.Y*b.j + this.Z*b.i;
+    // }
 
     xp(v) {
         return V4.of(
@@ -438,13 +374,29 @@ export class B4 extends Vector {
         return M4.Line(...this).exp(N);
     }
 
+    // TODO: lie bracket ? ? ?
+    // static bb(L,R, Out=B4.new) {
+    //     Out.i = (L.j*R.k - L.k*R.j + L.X*R.Y - L.Y*R.X);
+    //     Out.j = (L.k*R.i - L.i*R.k + L.Z*R.X - L.X*R.Z);
+    //     Out.k = (L.i*R.j - L.j*R.i + L.Y*R.Z - L.Z*R.Y);
+    //     Out.X = (L.i*R.Y - L.Y*R.i + L.Z*R.j - L.j*R.Z);
+    //     Out.Y = (L.k*R.Z - L.Z*R.k + L.X*R.i - L.i*R.X);
+    //     Out.Z = (L.j*R.X - L.X*R.j + L.Y*R.k - L.k*R.Y);
+    //     return Out;
+    // }
+
+    // lm(...Ls) { for (let L of Ls) { B4.bb(L, this.dup, this); } return this; }
+    // rm(...Rs) { for (let R of Rs) { B4.bb(this.dup, R, this); } return this; }
+    // static lm(L, ...Ls) { return L?.dup.lm(...Ls) ?? B4.zero; }
+    // static rm(R, ...Rs) { return R?.dup.rm(...Rs) ?? B4.zero; }
+
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 // LINEAR TRANSFORMATION :: R^4x4
-export class M4 extends Vector {
-    constructor() { super(16); }
-    static get new() { return new M4(); }
+export class M4 extends F64Mat {
+    static get new() { return new M4(new ArrayBuffer(8*4*4), 0, 4,4); }
+    static view(src, offset) { return new M4(src, offset, 4,4); }
     get dup() { return M4.from(this); }
 
     static VecIdx = (ri, ci) => Wrap(16)( ri + 4*ci );
@@ -613,7 +565,9 @@ export class M4 extends Vector {
     static get ones() { return M4.new.fill(1); }
 
     get flip() {
-        const sw = (i,j) => [this[i], this[j]] = [this[j], this[i]];
+        const sw = (i,j) => {
+            const tmp = this[i]; this[i] = this[j]; this[j] = tmp;
+        };
         /**********/ sw(0x1,0x4); sw(0x2,0x8); sw(0x3,0xC);
         /**********/ /**********/ sw(0x6,0x9); sw(0x7,0xD);
         /**********/ /**********/ /**********/ sw(0xB,0xE);
@@ -718,7 +672,7 @@ export class M4 extends Vector {
     mix(M, t) { return this.sc(1-t).fma(t, M); }
     static mix = (M0, M1) => t => M0.dup.mix(M1, t);
 
-    static Mul(L, R, Out=M4.new) {
+    static mm(L, R, Out=M4.new) {
         Out[0x0] = L[0x0]*R[0x0] + L[0x4]*R[0x1] + L[0x8]*R[0x2] + L[0xC]*R[0x3];
         Out[0x1] = L[0x1]*R[0x0] + L[0x5]*R[0x1] + L[0x9]*R[0x2] + L[0xD]*R[0x3];
         Out[0x2] = L[0x2]*R[0x0] + L[0x6]*R[0x1] + L[0xA]*R[0x2] + L[0xE]*R[0x3];
@@ -742,37 +696,32 @@ export class M4 extends Vector {
         return Out;
     }
 
-    // TODO: unsurprisingly, the per-multiply dup is costly
-    lm(...Ls) { for (let L of Ls) { M4.Mul(L, this.dup, this); } return this; }
-    rm(...Rs) { for (let R of Rs) { M4.Mul(this.dup, R, this); } return this; }
+    static vm(row, R, Out=V4.new) {
+        Out[0x0] = row[0x0]*R[0x0] + row[0x1]*R[0x1] + row[0x2]*R[0x2] + row[0x3]*R[0x3];
+        Out[0x1] = row[0x0]*R[0x4] + row[0x1]*R[0x5] + row[0x2]*R[0x6] + row[0x3]*R[0x7];
+        Out[0x2] = row[0x0]*R[0x8] + row[0x1]*R[0x9] + row[0x2]*R[0xA] + row[0x3]*R[0xB];
+        Out[0x3] = row[0x0]*R[0xC] + row[0x1]*R[0xD] + row[0x2]*R[0xE] + row[0x3]*R[0xF];
+        return Out;
+    }
+
+    static mv(L, col, Out=V4.new) {
+        Out[0x0] = L[0x0]*col[0x0] + L[0x4]*col[0x1] + L[0x8]*col[0x2] + L[0xC]*col[0x3];
+        Out[0x1] = L[0x1]*col[0x0] + L[0x5]*col[0x1] + L[0x9]*col[0x2] + L[0xD]*col[0x3];
+        Out[0x2] = L[0x2]*col[0x0] + L[0x6]*col[0x1] + L[0xA]*col[0x2] + L[0xE]*col[0x3];
+        Out[0x3] = L[0x3]*col[0x0] + L[0x7]*col[0x1] + L[0xB]*col[0x2] + L[0xF]*col[0x3];
+        return Out;
+    }
+
     static lm(L, ...Ls) { return L?.dup.lm(...Ls) ?? M4.id; }
     static rm(R, ...Rs) { return R?.dup.rm(...Rs) ?? M4.id; }
-
-    lmR(...Ls) { return this.lm(...Ls.reverse()); }
-    rmR(...Rs) { return this.rm(...Rs.reverse()); }
-    static lmR(...Ls) { return M4.lm(...Ls.reverse()); }
-    static rmR(...Rs) { return M4.rm(...Rs.reverse()); }
+    lm(...Ls) { for (let L of Ls) { M4.mm(L, this.dup, this); } return this; }
+    rm(...Rs) { for (let R of Rs) { M4.mm(this.dup, R, this); } return this; }
 
     lc(...Ls) { for (let L of Ls) { this.lm(L).rm(L.dup.T); } return this; }
     rc(...Rs) { for (let R of Rs) { this.rm(R).lm(R.dup.T); } return this; }
 
-    la(row) { // [:row:i] [i:this:j] = [:out:j]
-        return V4.of(
-            row[0x0]*this[0x0] + row[0x1]*this[0x1] + row[0x2]*this[0x2] + row[0x3]*this[0x3],
-            row[0x0]*this[0x4] + row[0x1]*this[0x5] + row[0x2]*this[0x6] + row[0x3]*this[0x7],
-            row[0x0]*this[0x8] + row[0x1]*this[0x9] + row[0x2]*this[0xA] + row[0x3]*this[0xB],
-            row[0x0]*this[0xC] + row[0x1]*this[0xD] + row[0x2]*this[0xE] + row[0x3]*this[0xF],
-        );
-    }
-
-    ra(col) { // [i:this:j] * [j:col:] = [i:out:]
-        return V4.of(
-            this[0x0]*col[0x0] + this[0x4]*col[0x1] + this[0x8]*col[0x2] + this[0xC]*col[0x3],
-            this[0x1]*col[0x0] + this[0x5]*col[0x1] + this[0x9]*col[0x2] + this[0xD]*col[0x3],
-            this[0x2]*col[0x0] + this[0x6]*col[0x1] + this[0xA]*col[0x2] + this[0xE]*col[0x3],
-            this[0x3]*col[0x0] + this[0x7]*col[0x1] + this[0xB]*col[0x2] + this[0xF]*col[0x3],
-        );
-    }
+    la(row) { return M4.vm(row, this); }
+    ra(col) { return M4.mv(this, col); }
 
     las(...rows) { return rows.map(this.la, this); }
     ras(...cols) { return cols.map(this.ra, this); }
@@ -785,7 +734,7 @@ export class M4 extends Vector {
 
     exp(N=24) {
         const [pow, s] = [[M4.id, this.dup], [1,1]];
-        for (let i = 1; i < N; ++i) { pow.push(pow[i].dup.lm(this)); s.push(s[i]/(i+1)) }
+        for (let i = 1; i < N; ++i) { pow.push(M4.mm(this, pow[i])); s.push(s[i]/(i+1)) }
         this.id;
         for (let i = 1; i < N; ++i) { this.add(pow[i].sc(s[i])); }
         return this;

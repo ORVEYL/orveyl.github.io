@@ -3,6 +3,7 @@ import { Controller } from "../controller.js";
 import { Orveyl } from "../../../orveyl.js";
 import { Scene } from "../../scene.js";
 import { Camera } from "../../scene/camera.js";
+import { Rand } from "../../../math/calc.js";
 
 // handles system & debug inputs
 export class OrveylDefaultController extends Controller {

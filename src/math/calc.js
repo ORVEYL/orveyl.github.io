@@ -31,8 +31,7 @@ export const All = f => xs => xs.every(f);
 
 export const Map = f => xs =>   Array.prototype.map    .call(xs, x => f(x));
 export const For = f => xs => { Array.prototype.forEach.call(xs,      f   ); return xs; }
-export const Mut = f => For((x,i,X) => X[i]=f(x));
-export const MutIdx = f => For((x,i,X) => X[i]=f(i));
+export const Mut = f => For((x,i,X) => X[i]=f(x,i));
 
 export const FoldL = (f, z=0) => xs =>
     Array.prototype.reduce.call(xs, (acc, x) => f(acc)(x), z);
@@ -43,9 +42,9 @@ export const Fold = FoldR;
 export const Scan = (f, z=0) => FoldL(acc => x => [...acc, f(x)(acc?.at(-1)??z)], []);
 
 export const Zip    = f => as => bs =>
-    Array.prototype.map    .call(as, (a,i  ) =>      f(a)(bs[i]));
+    Array.prototype.map    .call(as, (a,i  ) =>      f(a,i)(bs[Wrap(bs.length)(i)]));
 export const MutZip = f => as => bs => {
-    Array.prototype.forEach.call(as, (a,i,A) => A[i]=f(a)(bs[i]));
+    Array.prototype.forEach.call(as, (a,i,A) => A[i]=f(a,i)(bs[Wrap(bs.length)(i)]));
     return as;
 }
 
@@ -84,8 +83,8 @@ export const ApproxEq = ε => x => y => (AbsErr(x)(y) < ε);
 export const Snap = ε => x => (Abs(x) < ε) ? 0 : x;
 
 export const Floor = Math.floor; export const Ceil = Math.ceil;
-export const Trunc = Math.trunc; export const Fract = Math.fract; 
-export const Split = x => [Trunc(x), Fract(x)];
+export const Trunc = Math.trunc; export const Fract = x => x-Trunc(x);
+export const Split = x => { const tx = Trunc(x); return [tx, x-tx]; };
 
 export const Min = x => y => Math.min(x,y);
 export const Max = x => y => Math.max(x,y);
@@ -152,6 +151,8 @@ export const StdNorm = μ => σ => x => Exp(-Sq(x-μ)/(2*σ*σ)) / (σ*Sqrt(τ))
 export const Lerp = (min, max) => x => min*(1-x) + max*x;
 export const LerpInv = (min, max) => y => (y-min) / (max-min);
 export const Remap = (xmin, xmax) => (ymin, ymax) => x => Lerp(ymin, ymax)(LerpInv(xmin,xmax)(x));
+
+export const Damp = (min, max, λ=1) => dt => Calc.Lerp(min, max)(1 - Calc.Exp(-λ*dt));
 
 export const Step = edge => x => Lt(edge)(x);
 export const SgnStep = edge => x => Step(edge)(x);
@@ -619,3 +620,75 @@ export const Excess = (a,b,c) => Snap(1e-12)((a+b+c) - π);
 export const Defect = (a,b,c) => Snap(1e-12)(π - (a+b+c));
 
 export const Osc = (A, ω, φ=0) => t => A*Geom.Sph.Cos(ω*t+φ);
+
+////////////////////////////////////////////////////////////////////////////////
+// BASE VECTOR :: R^N
+export class F64Vec extends Float64Array {
+    constructor(src, offset, N) { super(src, 8*offset, N); }
+
+    static new(N) { return new F64Vec(new ArrayBuffer(8*N), 0, N); }
+    static view(src, offset, N) { return new F64Vec(src.buffer, offset, N); }
+
+    get json() { return JSON.stringify(Array.from(this)); }
+    set json(src) { this.copy(JSON.parse(src)); }
+
+    //dup() { return F64Vec.from(this); }
+    get dup() { return F64Vec.from(this); }
+
+    copy(src, offset=0) { super.set(src, offset); return this; }
+    put(val, offset) { this[offset] = val; return this; }
+
+    any(pr) { return Any(pr)(this); }
+    all(pr) { return All(pr)(this); }
+
+    map(fn) { return Mut(fn)(this); }
+    zip(v, op) { return IsIterable(v) ? MutZip(op)(this)(v) : this.map(op(v)); }
+    fold(fn, init=0) { return Fold(fn, init)(this); }
+    scan(fn, init=0) { return Scan(fn, init)(this); }
+    
+    eq(v, ε=1e-12) {
+        return this.length == v.length && All(LtEq(ε))(Zip(AbsErr)(this)(v));
+    }
+
+    sc(s) { return this.map(Mul(s)); }
+    neg() { return this.map(Neg); }
+
+    add(v) { return this.zip(v, Add); }
+    sub(v) { return this.zip(v, Sub); }
+    mul(v) { return this.zip(v, Mul); }
+    div(v) { return this.zip(v, Div); }
+
+    fma(s, v) { return this.zip(v, lhs => rhs => lhs + s*rhs); }
+
+    static mix = (v0, v1) => t => v0.dup.sc(1-t).fma(t, v1);
+    mix(v, t) { return this.sc(1-t).fma(t, v); }
+
+    static sum(v0, ...vs) { return Fold(lhs => rhs => lhs.add(rhs), v0.dup())(vs); }
+    static Σ = this.sum;
+
+    sum(...vs) { return F64Vec.sum(this, ...vs); }
+    Σ  (...vs) { return F64Vec.Σ  (this, ...vs);  }
+
+    static dot(u, v) { return Σ(Zip(Mul)(u)(v)); }
+    dot(v) { return F64Vec.dot(this, v); }
+
+    sq() { return F64Vec.dot(this, this); }
+    norm() { return Root(this.sq()); }
+    unit() { return this.sc(1/this.norm()); }
+
+    static outer(u, v) { return F64Vec.new(u.length * v.length).copy(Outer(Mul)(u)(v).flat()); }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// BASE MATRIX :: R^Rows*Cols
+export class F64Mat extends F64Vec {
+    constructor(src, offset, Rows, Cols) {
+        super(src, offset, Rows*Cols);
+        this.rows = Rows; this.cols = Cols;
+    }
+
+    static new(Rows, Cols) { return new F64Mat(new ArrayBuffer(8*Rows*Cols), 0, Rows, Cols); }
+    static view(src, offset, Rows, Cols) { return new F64Mat(src.buffer, offset, Rows, Cols); }
+
+    put(val, ro, co) { this[ro*this.rows + co] = val; return this; }
+}

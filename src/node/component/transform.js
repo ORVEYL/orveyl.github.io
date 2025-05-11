@@ -16,7 +16,7 @@ export class Transform extends Component {
     static GetMatrixTransposed = tf => tf.matrix.dup.T;
 
     get world_from_local() {
-        if (this.cached_world_from_local) return this.cached_world_from_local;
+        //if (this.cached_world_from_local) return this.cached_world_from_local; // TODO: FIX THIS!!!!
 
         if (!this.matrix) return this.parent ? this.parent.world_from_local : M4.id;
 

@@ -56,7 +56,7 @@ export class System {
     }
 
     static Verbose = false;
-    static VerboseLog(args) { if (System.Verbose) console.log(...args); }
+    static VerboseLog(args) { if (System.Verbose) console.log(args); }
 
     static Bailout_ms = 5000;
 
@@ -102,7 +102,7 @@ export class System {
             for (let j = 0; j < rules.length; ++j) {
                 System.Step(rules)(rules[i], rules[j]);
                 if (System.Bailout_ms) {
-                    const dt = Date.now - start_time;
+                    const dt = Date.now() - start_time;
                     const bail = (dt >= System.Bailout_ms);
 
                     console.assert(
@@ -110,14 +110,24 @@ export class System {
                         `Knuth-Bendix completion is taking a while... (T = ${dt}ms)`,
                         {System: this, Rules: rules}
                     );
-                    if (bail) throw new Error(`Bailing out!`);
+
+                    if (bail) {
+                        System.VerboseLog("Rewrites In-Progress:");
+                        System.VerboseLog(System.Clean(rules));
+                        throw new Error(`Bailing out!`);
+                    }
                 }
             }
         }
 
-        this.rewrites = rules.filter(r => r.active);
+        this.rewrites = System.Clean(rules);
+        System.VerboseLog("Completed Rewrites:");
+        System.VerboseLog(this.rewrites);
+
         return this;
     }
+
+    static Clean = (rules) => rules.filter(r => r.active).sort(System.ShortLex);
 
     static Step = (rules) => (L, R) => {
         if (!(L.active && R.active)) return;
