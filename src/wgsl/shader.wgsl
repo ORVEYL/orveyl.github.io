@@ -6,12 +6,12 @@ struct uMatStruct {
     WorldFromLocal: mat4x4f,
 };
 
-const mExchange = transpose(mat4x4f(
-    0,-1, 0, 0,
+const mExchange = mat4x4f(
     0, 0, 1, 0,
-    1, 0, 0, 0,
+    -1, 0, 0, 0,
+    0, 1, 0, 0,
     0, 0, 0, 1,
-));
+);
 
 struct uTimeStruct {
     Step: f32,
