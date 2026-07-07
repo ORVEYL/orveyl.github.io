@@ -984,9 +984,9 @@ export class Orveyl {
         Complex: 4,
     };
 
-    static SetSky(r,g,b) {
+    static SetSky(r,g,b,a=1) {
         Orveyl.GPUBuffers.Sky.set([
-            r,g,b,1, 0,0,0,0,
+            r,g,b,a, 0,0,0,0,
             0,0,0,0, 0,0,0,0,
             0,0,0,0, 0,0,0,0,
             0,0,0,0, 0,0,0,0,

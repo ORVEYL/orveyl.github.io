@@ -65,6 +65,7 @@ export class Geometry extends Scene {
         this.ob?.mat.set(this.world_from_local, 0).write();
         this.ob?.tint.set(this.tint ?? [1,1,1,1], 0).write();
 
+        // TODO: relative transform invalidations causing reallocs
         this.bg = Orveyl.Device.createBindGroup({
             label: `${this.name}.bg`,
             layout: Orveyl.BindGroupLayouts.ObjectData,
@@ -74,6 +75,12 @@ export class Geometry extends Scene {
             ],
         });
 
+        return this;
+    }
+
+    setVisible(visible) {
+        if (visible != this.visible) Orveyl.DrawCache.Collector = null;
+        this.visible = visible;
         return this;
     }
 

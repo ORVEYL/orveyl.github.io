@@ -134,6 +134,7 @@ export class V4 extends F64Vec {
 
     static of(x, y, z, w) { return super.of(x??0, y??0, z??0, w??0); }
     static rgb(r, g, b, a=1) { return V4.of(r, g, b, a); }
+    static gray(k, a=1) { return V4.of(k, k, k, a); }
 
     static E(i, s=1) { return V4.new.setAt(i, s); }
     static Ex(s=1) { return V4.E(0, s); } static get x() { return V4.Ex(); }
@@ -229,7 +230,7 @@ export class V4 extends F64Vec {
     }
     quad(v=V4.w) { return V4.quad(this, v); }
 
-    static dist(a, b=V5.a) {
+    static dist(a, b=V4.a) {
         if (Geom.Sig >= 0) return Geom.CosInv(Calc.Root(V4.quad(a,b)));
 
         const [aa, ab, bb] = [a.ip(a), a.ip(b), b.ip(b)];
@@ -384,7 +385,6 @@ export class B4 extends F64Vec {
     }
 
     exp(N=24) {
-        // TODO: B4 exp can be optimized in terms of symm / skew parts only
         return M4.Line(...this).exp(N);
     }
 
@@ -861,7 +861,15 @@ export class M4 extends F64Mat {
         );
     }
 
-    static Mov(dX, dY, dZ, dt=1) { return M4.Flux(dX, dY, dZ, dt).exp(); }
+    static Mov(dX, dY, dZ, dt=1) {
+        // TODO: check if this works for Sph case too
+        const r = dt*Calc.Sqrt(dX*dX + dY*dY + dZ*dZ);
+        const [C,S] = Geom.Exp(r);
+        const M = M4.Flux(dX, dY, dZ, dt);
+        const M2 = M4.mm(M, M);
+        return M4.Σ(M4.id, M.sc(S/r), M2.sc((C-1)/(r*r)));
+    }
+
     static MovX(t) {
         const [C,S] = Geom.Exp(t);
         return Geom.Case(M4.Skew, M4.Symm)(
