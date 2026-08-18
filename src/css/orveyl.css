@@ -33,15 +33,21 @@ header {
 }
 
 div#menu, div#status {
+    margin: 0.5em;
     padding: 1em;
-    border: solid 1px;
-
     max-height: 75vh;
     overflow-y: auto;
+
+    border: solid 2px;
+    border-color: #222;
+}
+
+div#menu {
+    border-bottom: solid 1px #222;
 }
 
 div#status {
-    border-color: #fff; border-top: 0;
+    border-top: solid 1px #222;
     color: #888;
 }
 
@@ -52,13 +58,48 @@ canvas {
     margin: auto; padding: 0;
 }
 
-table {
-    border: solid 1px #888;
+details {
+    margin: 0 0;
+    max-width: fit-content;
 }
 
-th, td {
+details::details-content {
+    border-top: dashed 1px #888;
+}
+
+details[open]::details-content {
+    border: solid 1px #888;
+    padding: 0.5em;   
+}
+
+details > table:last-child {
+    margin: auto;
+}
+
+details > p {
+    margin: 0.5em;
+}
+
+details > summary > h1, h2, h3, h4, h5, h6 {
+    display:inline-block;
+}
+
+table {
+    background-color: #222;
+    border: solid 1px #888;
+    margin: 1em;
+}
+
+th {
+    background-color: #444;
+    border: solid 1px #888;
+    padding: 0.25em 0.5em;
+}
+
+td {
+    background-color: #000;
     border: solid 1px #444;
-    padding: 0.5em;
+    padding: 0.25em 0.5em;
 }
 
 input, select {

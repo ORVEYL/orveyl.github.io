@@ -29,56 +29,54 @@ Orveyl.Menu.innerHTML = [
 
 `<details>
     <summary>:: Controls ::</summary>
-    <ul>
-        <table>
-            <tr>
-                <th>Action
-                <th>Keyboard
-                <th>Gamepad
-            <tr style="color:#f88">
-                <td>Move Forward / Backward
-                <td>W / S
-                <td>Left Analog Stick
-            <tr style="color:#8f8">
-                <td>Move Left / Right
-                <td>A / D
-                <td>Left Analog Stick
-            <tr style="color:#88f">
-                <td>Move Up / Down
-                <td>R / F
-                <td>Left / Right Trigger
-            <tr style="color:#ff8">
-                <td>Rotate Left / Right
-                <td>← / →
-                <td>Right Analog Stick
-            <tr style="color:#f8f">
-                <td>Rotate Up / Down
-                <td>↑ / ↓
-                <td>Right Analog Stick
-            <tr style="color:#8ff">
-                <td>Roll CCW / CW
-                <td>Q / E
-                <td>L / R Shoulder
-            <tr>
-                <td>Place Marker
-                <td>Space
-            <tr>
-                <td>Remove Marker
-                <td>Shift + Space
-            <tr>
-                <td>Teleport to<br>Scene Origin
-                <td>Home
-            <tr>
-                <td>Teleport to<br>Last Marker
-                <td>Shift + Home
-            <tr>
-                <td>Download Canvas as PNG
-                <td>Backslash \\
-            <tr>
-                <td>Toggle "Immersive Mode"
-                <td>Alt + Enter
-        </table>
-    </ul>
+    <table>
+        <tr>
+            <th>Action
+            <th>Keyboard
+            <th>Gamepad
+        <tr style="color:#f88">
+            <td>Move Forward / Backward
+            <td>W / S
+            <td>Left Analog Stick
+        <tr style="color:#8f8">
+            <td>Move Left / Right
+            <td>A / D
+            <td>Left Analog Stick
+        <tr style="color:#88f">
+            <td>Move Up / Down
+            <td>R / F
+            <td>Left / Right Trigger
+        <tr style="color:#ff8">
+            <td>Rotate Left / Right
+            <td>← / →
+            <td>Right Analog Stick
+        <tr style="color:#f8f">
+            <td>Rotate Up / Down
+            <td>↑ / ↓
+            <td>Right Analog Stick
+        <tr style="color:#8ff">
+            <td>Roll CCW / CW
+            <td>Q / E
+            <td>L / R Shoulder
+        <tr>
+            <td>Place Marker
+            <td>Space
+        <tr>
+            <td>Remove Marker
+            <td>Shift + Space
+        <tr>
+            <td>Teleport to<br>Scene Origin
+            <td>Home
+        <tr>
+            <td>Teleport to<br>Last Marker
+            <td>Shift + Home
+        <tr>
+            <td>Download Canvas as PNG
+            <td>Backslash \\
+        <tr>
+            <td>Toggle "Immersive Mode"
+            <td>Alt + Enter
+    </table>
 </details>`,
 ].join("<br>");
 
