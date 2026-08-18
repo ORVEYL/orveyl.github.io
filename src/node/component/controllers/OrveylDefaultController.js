@@ -13,14 +13,10 @@ export class OrveylDefaultController extends Controller {
         if (input.tick("sceneIndex+") == 1) Scene.Manager.useNext();
 
         if (input.tick("screenshot") == 1) {
-            const link = document.createElement("a");
-            link.download = `orveyl_${Date.now()}.png`;
-            link.href = Orveyl.Canvas
-                .toDataURL("image/png")
-                .replace("image/png", "image/octet-stream");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            const shift = (input.curr("shift") > 0);
+            const alt = (input.curr("alt") > 0);
+            const scale = (1+shift) * (1+alt);
+            Orveyl.CaptureScreenshot(scale);
         }
 
         if (input.curr("alt")) {
