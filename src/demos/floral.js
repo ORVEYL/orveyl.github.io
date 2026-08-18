@@ -272,7 +272,7 @@ document.getElementById("generate").onclick = () => {
             CL: [...CL], CR: [...CR],
             CF: [...CF],
             CS: [...CS], CG: [...CG],
-            Depth: Ps.Depth,
+            Depth: Math.min(8, Ps.Depth),
             Mask: Ps.Mask,
         })}`,
     ].join("&"));
