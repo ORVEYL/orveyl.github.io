@@ -5,6 +5,8 @@ import { F32Buffer, Vertex, VertexBuffer, IndexBuffer } from "../../gpubuffer.js
 import { Visitor } from "../visitor.js";
 import { Orveyl } from "../../orveyl.js";
 
+import { DrawCollector } from "../drawCollector.js";
+
 export class Geometry extends Scene {
     static Device = null;
 
@@ -27,15 +29,7 @@ export class Geometry extends Scene {
             ),
         };
 
-        this.bg = Orveyl.Device.createBindGroup({
-            label: `${name}.bg`,
-            layout: Orveyl.BindGroupLayouts.ObjectData,
-            entries: [
-                { binding: 0, resource: { buffer: this.ob.mat.gpubuf } },
-                { binding: 1, resource: { buffer: this.ob.tint.gpubuf } },
-            ],
-        });
-
+        this.bg_objData = null;
         this.write();
 
         this.mode = 2;
@@ -44,7 +38,7 @@ export class Geometry extends Scene {
 
     invalidate() {
         super.invalidate();
-        Orveyl.DrawCache.Collector = null;
+        DrawCollector.invalidate();
         return this.write();
     }
 
@@ -62,12 +56,12 @@ export class Geometry extends Scene {
             this.ia,
         ).write() : null;
 
-        this.ob?.mat.set(this.world_from_local, 0).write();
-        this.ob?.tint.set(this.tint ?? [1,1,1,1], 0).write();
+        this.ob.mat.set(this.world_from_local, 0).write();
+        this.ob.tint.set(this.tint ?? [1,1,1,1], 0).write();
 
         // TODO: relative transform invalidations causing reallocs
-        this.bg = Orveyl.Device.createBindGroup({
-            label: `${this.name}.bg`,
+        this.bg_objData = Orveyl.Device.createBindGroup({
+            label: `${this.name}.bg_objData`,
             layout: Orveyl.BindGroupLayouts.ObjectData,
             entries: [
                 { binding: 0, resource: { buffer: this.ob.mat.gpubuf } },
@@ -79,9 +73,8 @@ export class Geometry extends Scene {
     }
 
     setVisible(visible) {
-        if (visible != this.visible) Orveyl.DrawCache.Collector = null;
-        this.visible = visible;
-        return this;
+        if (visible != this.visible) DrawCollector.invalidate();
+        return super.setVisible(visible);
     }
 
     setMode(mode) {
@@ -92,18 +85,5 @@ export class Geometry extends Scene {
     setBlend(blend) {
         this.blend = blend;
         return this;
-    }
-};
-
-export class GeometryCollector extends Visitor {
-    constructor() {
-        super(
-            here => (here instanceof Scene && here.visible),
-            here => {
-                if (here instanceof Geometry) { this.data[here.blend].push(here); }
-            },
-        );
-
-        this.data = [[],[],[]];
     }
 };

@@ -9,6 +9,8 @@ import { SI } from "../math/si.js";
 
 import { Scene } from "../node/scene.js";
 import { Geometry } from "../node/scene/geometry.js";
+import { Light } from "../node/scene/light.js";
+
 import { Ticker } from "../node/component/ticker.js";
 
 import * as KB from "../math/knuthbendix.js";
@@ -16,6 +18,7 @@ import { WordTree } from "../node/scene/wordtree.js";
 import { VertexArray, IndexArray } from "../gpubuffer.js";
 import { Orveyl } from "../orveyl.js";
 import { Orveyl3dController } from "../node/component/controllers/Orveyl3dController.js";
+import { Gizmo } from "../node/scene/gizmo.js";
 
 const m = SI.m_to_au;
 SI.m_per_au = 256;
@@ -28,8 +31,13 @@ const map_pal_offset  = Orveyl.InitParams.get("p") ?? 0;
 const treasure_enabled = Orveyl.InitParams.get("n") ?? true;
 const treasure_N = treasure_enabled ? [3, 6, 9, 12][map_size] : 0;
 
+Orveyl.SetDrawLitEnabled(true);
+
 Orveyl.DefaultPlayer.attach(
-    new Orveyl3dController("3dController")
+    new Orveyl3dController("3dController"),
+    new Light("PlayerLight", Light.Mode.Point, 0, m(250), V4.gray(3/4)).attach(
+        new Ticker("PlayerLightTicker", a=>{ a.parent.write(); }).play()
+    )
 );
 
 Orveyl.Menu.innerHTML = [
@@ -509,6 +517,12 @@ for (let i = 0; i < treasure_N; ++i) {
     .setBlend(1);
     treasures.add(here.treasure);
 
+    const L = here.treasure.light = new Light("TreasureLight");
+    L.attachTo(here.treasure);
+    L.tint = V4.gray(2);
+    L.mode = Light.Mode.Point;
+    L.r0 = 0; L.r1 = m(250);
+
     here.treasure.init_Mz = Mz.dup;
 
     console.log(here.treasure);
@@ -599,6 +613,7 @@ if (treasure_N) {
         let min_dist = Infinity;
         for (let tr of treasures.values()) {
             tr.setRelative(M4.lm(tr.init_Mz, T));
+            tr.light.write();
 
             const dist = V4.dist(tr.world_from_local.Cw, pos);
             min_dist = Calc.Min(min_dist)(dist);
@@ -677,3 +692,34 @@ new Ticker("SkyAnim", self => {
 }).attachTo(Orveyl.Root).play(1/50)
 
 Scene.Manager.add(wt).useIndex(0);
+
+const lsc = new Scene("Lights");
+lsc.attachTo(wt);
+{
+    const L = new Light("AmbientLight");
+    L.attachTo(lsc);
+    L.tint = V4.gray(1/16).fma(2, sky_col);
+    L.mode = Light.Mode.Ambient;
+    L.write();
+
+    const C = Rand.Gauss(0.5)(0.25);
+    const R0 = Rand.Gauss(-150)(50);
+    const R1 = Rand.Gauss(300)(100);
+
+    for (let i = 0; i < 32; ++i) {
+        const L = new Light("RandomLight");
+        L.attachTo(lsc);
+
+        L.rm(
+            M4.RotI(π*Rand.Sign()),
+            M4.MovX(3*Rand.Sqrt()),
+            M4.MovZ(0.5*Rand.Sign()),
+            M4.RotJ(π/2),
+        );
+        L.mode = Light.Mode.Collar;
+        L.tint = V4.rgb(C(), C(), C(), 1/16);
+        L.r0 = m(R0());
+        L.r1 = m(R1());
+        L.write();
+    }
+}

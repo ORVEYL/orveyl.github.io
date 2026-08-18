@@ -15,7 +15,10 @@ import { Gizmo } from "./node/scene/gizmo.js";
 import { Camera } from "./node/scene/camera.js";
 import { Controller } from "./node/component/controller.js";
 import { Ticker } from "./node/component/ticker.js";
-import { Geometry, GeometryCollector } from "./node/scene/geometry.js";
+import { Geometry } from "./node/scene/geometry.js";
+import { Light } from "./node/scene/light.js";
+
+import { DrawCollector } from "./node/drawCollector.js";
 import { OrveylDefaultController } from "./node/component/controllers/OrveylDefaultController.js";
 
 export class Orveyl {
@@ -51,7 +54,7 @@ export class Orveyl {
     static PipelineLayouts = {};
     static Pipelines = {};
 
-    static DrawCache = {};
+    static DeferredPipeline = null;
 
     static Tick = -1;
     static T0 = 0;//Date.now();
@@ -151,10 +154,35 @@ export class Orveyl {
     }
 
     static ResizeCanvas(width, height) {
+        const limit_8k = Calc.Min(8192);
+        width = limit_8k(width);
+        height = limit_8k(height);
         Orveyl.InitCanvas(width, height);
         Orveyl.InitRenderTextures();
         Orveyl.InitBindGroups();
         Orveyl.GPUBuffers.Resolution.set([width, height]).write();
+    }
+
+    static CaptureScreenshot(scale=1) {
+        const [w,h] = [Orveyl.Canvas.width, Orveyl.Canvas.height];
+        
+        if (scale != 1) {
+            Orveyl.ResizeCanvas(scale*w, scale*h);
+            Orveyl.Draw();
+        }
+
+        const link = document.createElement("a");
+        link.download = `orveyl_${Date.now()}.png`;
+        link.href = Orveyl.Canvas
+            .toDataURL("image/png")
+            .replace("image/png", "image/octet-stream");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        if (scale != 1) {
+            Orveyl.ResizeCanvas(w, h);
+        }
     }
 
     static SetMaximized(enabled) {
@@ -382,9 +410,22 @@ export class Orveyl {
             GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             new Float32Array([1,1,1,1]),
         ).write();
+
+        Orveyl.GPUBuffers.LightParams = new F32Buffer(
+            Orveyl.Device, "Orveyl.GPUBuffers.LightParams",
+            GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            new Float32Array(3),
+        ).write();
     }
 
     static InitBindGroups() {
+        Orveyl.BindGroupIndex = {
+            Uniforms: 0,
+            ObjectData: 1,
+            LightData: 2,
+            GBufTextures: 3,
+        };
+
         Orveyl.BindGroupLayouts.Uniforms = Orveyl.Device.createBindGroupLayout({
             label: "Orveyl.BindGroupLayouts.Uniforms",
             entries: [
@@ -515,6 +556,25 @@ export class Orveyl {
                 { binding: 1, resource: { buffer: Orveyl.GPUBuffers.ObjTint.gpubuf } },
             ],
         });
+
+        Orveyl.BindGroupLayouts.LightData = Orveyl.Device.createBindGroupLayout({
+            label: "Orveyl.BindGroupLayouts.LightData",
+            entries: [
+                { // light params
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT | GPUShaderStage.COMPUTE,
+                    buffer: { type: "uniform" },
+                },
+            ],
+        });
+
+        Orveyl.BindGroups.LightData = Orveyl.Device.createBindGroup({
+            label: "Orveyl.BindGroup.LightData",
+            layout: Orveyl.BindGroupLayouts.LightData,
+            entries: [
+                { binding: 0, resource: { buffer: Orveyl.GPUBuffers.LightParams.gpubuf } },
+            ],
+        });
     }
 
     static InitPipelines() {
@@ -628,33 +688,6 @@ export class Orveyl {
 
         ];
 
-        Orveyl.PipelineLayouts.Deferred = Orveyl.Device.createPipelineLayout({
-            label: "Orveyl.PipelineLayouts.Deferred",
-            bindGroupLayouts: [
-                Orveyl.BindGroupLayouts.Uniforms,
-                Orveyl.BindGroupLayouts.ObjectData,
-                Orveyl.BindGroupLayouts.GBufTextures,
-            ],
-        });
-
-        Orveyl.Pipelines.Deferred = Orveyl.Device.createRenderPipeline({
-            label: "Orveyl.Pipelines.Deferred",
-            layout: Orveyl.PipelineLayouts.Deferred,
-
-            vertex: {
-                module: Orveyl.ShaderModules.Deferred,
-                entryPoint: "vertScreen",
-            },
-
-            fragment: {
-                module: Orveyl.ShaderModules.Deferred,
-                entryPoint: "fragDeferred",
-                targets: [
-                    { format: Orveyl.CanvasFormat },
-                ],
-            },
-        });
-
         const blendDescs = {
                 add: {
                     color: {
@@ -733,7 +766,103 @@ export class Orveyl {
                         operation: 'add',
                     },
                 },
+
+                src_over: {
+                    color: {
+                        operation: 'add',
+                        srcFactor: 'one',
+                        dstFactor: 'one-minus-src-alpha',
+                    },
+                    alpha: {
+                        operation: 'add',
+                        srcFactor: 'one',
+                        dstFactor: 'one-minus-src-alpha',
+                    },
+                },
+
+                dst_over: {
+                    color: {
+                        operation: 'add',
+                        srcFactor: 'one-minus-dst-alpha',
+                        dstFactor: 'one',
+                    },
+                    alpha: {
+                        operation: 'add',
+                        srcFactor: 'one-minus-dst-alpha',
+                        dstFactor: 'one',
+                    },
+                },
         };
+
+        Orveyl.PipelineLayouts.Deferred = Orveyl.Device.createPipelineLayout({
+            label: "Orveyl.PipelineLayouts.Deferred",
+            bindGroupLayouts: [
+                Orveyl.BindGroupLayouts.Uniforms,
+                Orveyl.BindGroupLayouts.ObjectData,
+                Orveyl.BindGroupLayouts.LightData,
+                Orveyl.BindGroupLayouts.GBufTextures,
+            ],
+        });
+
+        Orveyl.Pipelines.DeferredUnlit = Orveyl.Device.createRenderPipeline({
+            label: "Orveyl.Pipelines.DeferredUnlit",
+            layout: Orveyl.PipelineLayouts.Deferred,
+
+            vertex: {
+                module: Orveyl.ShaderModules.Deferred,
+                entryPoint: "vertScreen",
+            },
+
+            fragment: {
+                module: Orveyl.ShaderModules.Deferred,
+                entryPoint: "fragDeferredUnlit",
+                targets: [
+                    { format: Orveyl.CanvasFormat },
+                ],
+            },
+        });
+
+        Orveyl.Pipelines.DeferredLit = Orveyl.Device.createRenderPipeline({
+            label: "Orveyl.Pipelines.DeferredLit",
+            layout: Orveyl.PipelineLayouts.Deferred,
+
+            vertex: {
+                module: Orveyl.ShaderModules.Deferred,
+                entryPoint: "vertScreen",
+            },
+
+            fragment: {
+                module: Orveyl.ShaderModules.Deferred,
+                entryPoint: "fragDeferredLit",
+                    targets: [
+                        {
+                            format: Orveyl.CanvasFormat,
+                            blend: blendDescs.add,
+                        },
+                    ],
+            },
+        });
+
+        Orveyl.Pipelines.DeferredSky = Orveyl.Device.createRenderPipeline({
+            label: "Orveyl.Pipelines.DeferredSky",
+            layout: Orveyl.PipelineLayouts.Deferred,
+
+            vertex: {
+                module: Orveyl.ShaderModules.Deferred,
+                entryPoint: "vertScreen",
+            },
+
+            fragment: {
+                module: Orveyl.ShaderModules.Deferred,
+                entryPoint: "fragDeferredSky",
+                    targets: [
+                        {
+                            format: Orveyl.CanvasFormat,
+                            blend: blendDescs.src_over,
+                        },
+                    ],
+            },
+        });
 
         const make_pipeline_modes = (label, blendDesc, depthCompareOp) => [
             ////////////////////////////////////
@@ -1027,6 +1156,10 @@ export class Orveyl {
         Orveyl.GPUBuffers.Fog.set([r,g,b,a]).write();
     }
 
+    static SetDrawLitEnabled(draw_lit) {
+        Orveyl.DrawLitEnabled = draw_lit;
+    }
+
     ////////////////////////////////////////////////////////////////////////////////
     static Update(t_curr) {
         requestAnimationFrame(Orveyl.Update);
@@ -1094,30 +1227,32 @@ export class Orveyl {
             },
         };
         
-        const draw_cache_valid = (Orveyl.DrawCache.Collector != null);
-        if (!draw_cache_valid) {
-            Orveyl.DrawCache.Collector = new GeometryCollector();
+        if (DrawCollector.Instance == null) {
+            DrawCollector.Instance = new DrawCollector();
             if (Scene.Manager.active?.visible) {
-                Orveyl.DrawCache.Collector.visit(Scene.Manager.active);
+                DrawCollector.Instance.visit(Scene.Manager.active);
             }
-            Orveyl.DrawCache.Collector.visit(Scene.BreadcrumbRoot);
+            DrawCollector.Instance.visit(Scene.BreadcrumbRoot);
+            DrawCollector.Instance.visit(Orveyl.DefaultPlayer);
         }
 
         Orveyl.ClearGBuf();
         Orveyl.DrawGeom(
-            Orveyl.DrawCache.Collector.data[0], opaque_desc, Orveyl.Pipelines.GBufMode
+            DrawCollector.Instance.geom[0], opaque_desc, Orveyl.Pipelines.GBufMode
         );
+
         Orveyl.DrawDeferred();
 
         const blend_order = [1, 2];
         for (let i of blend_order) {
-            Orveyl.DrawGeom(Orveyl.DrawCache.Collector.data[i], blend_desc,
+            Orveyl.DrawGeom(DrawCollector.Instance.geom[i], blend_desc,
                 [   null,
                     Orveyl.Pipelines.AdditiveMode,
                     Orveyl.Pipelines.SubtractiveMode,
                 ][i],
             );
         }
+
     }
 
     static ClearGBuf() {
@@ -1147,8 +1282,8 @@ export class Orveyl {
         });
 
         pass.setPipeline(Orveyl.Pipelines.GBufMode[2]);
-        pass.setBindGroup(0, Orveyl.BindGroups.Uniforms);
-        pass.setBindGroup(1, Orveyl.BindGroups.ObjectData);
+        pass.setBindGroup(Orveyl.BindGroupIndex.Uniforms, Orveyl.BindGroups.Uniforms);
+        pass.setBindGroup(Orveyl.BindGroupIndex.ObjectData, Orveyl.BindGroups.ObjectData);
 
         pass.setVertexBuffer(0, Orveyl.VertexBuffers.Clear.gpubuf);
         pass.draw(1);
@@ -1168,8 +1303,8 @@ export class Orveyl {
         
         for (let geom of geom_src) {
             pass.setPipeline(pipeline_modes[geom.mode]);
-            pass.setBindGroup(0, Orveyl.BindGroups.Uniforms);
-            pass.setBindGroup(1, geom.bg);
+            pass.setBindGroup(Orveyl.BindGroupIndex.Uniforms, Orveyl.BindGroups.Uniforms);
+            pass.setBindGroup(Orveyl.BindGroupIndex.ObjectData, geom.bg_objData);
 
             pass.setVertexBuffer(0, geom.vb.gpubuf);
             if (geom.ib) {
@@ -1204,13 +1339,27 @@ export class Orveyl {
             ],
         });
 
-        pass.setPipeline(Orveyl.Pipelines.Deferred);
-        pass.setBindGroup(0, Orveyl.BindGroups.Uniforms);
-        pass.setBindGroup(1, Orveyl.BindGroups.ObjectData);
-        pass.setBindGroup(2, Orveyl.BindGroups.GBufTextures);
-        pass.draw(3);
-        pass.end();
+        pass.setBindGroup(Orveyl.BindGroupIndex.Uniforms, Orveyl.BindGroups.Uniforms);
+        pass.setBindGroup(Orveyl.BindGroupIndex.ObjectData, Orveyl.BindGroups.ObjectData);
+        pass.setBindGroup(Orveyl.BindGroupIndex.LightData, Orveyl.BindGroups.LightData);
+        pass.setBindGroup(Orveyl.BindGroupIndex.GBufTextures, Orveyl.BindGroups.GBufTextures);
 
+        if (Orveyl.DrawLitEnabled) {
+            pass.setPipeline(Orveyl.Pipelines.DeferredLit);
+            for (let light of DrawCollector.Instance.lights) {
+                pass.setBindGroup(Orveyl.BindGroupIndex.ObjectData, light.bg_objData);
+                pass.setBindGroup(Orveyl.BindGroupIndex.LightData, light.bg_lightData);
+                pass.draw(3);
+            }
+        } else {
+            pass.setPipeline(Orveyl.Pipelines.DeferredUnlit);
+            pass.draw(3);
+        }
+
+        pass.setPipeline(Orveyl.Pipelines.DeferredSky);
+        pass.draw(3);
+
+        pass.end();
         Orveyl.Device.queue.submit([enc.finish()]);
     }
 

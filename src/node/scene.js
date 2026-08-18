@@ -32,4 +32,9 @@ export class Scene extends Transform {
         }
     }
 
+    setVisible(visible) {
+        this.visible = visible;
+        return this;
+    }
+
 };

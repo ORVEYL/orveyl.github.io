@@ -18,6 +18,12 @@ struct uTimeStruct {
     T: f32,
 };
 
+struct uLightParamStruct {
+    Mode: f32,
+    R0: f32,
+    R1: f32,
+};
+
 @group(0) @binding(0) var<uniform> uMat: uMatStruct;
 @group(0) @binding(1) var<uniform> uRes: vec2f;
 @group(0) @binding(2) var<uniform> uTime: uTimeStruct;
@@ -32,14 +38,12 @@ struct uTimeStruct {
 @group(1) @binding(0) var<uniform> objMat: mat4x4f;
 @group(1) @binding(1) var<uniform> objTint: vec4f;
 
-@group(2) @binding(0) var gPos: texture_2d<f32>;
-@group(2) @binding(1) var gCol: texture_2d<f32>;
-@group(2) @binding(2) var gMat: texture_2d<u32>;
-@group(2) @binding(3) var gDepth: texture_depth_2d;
+@group(2) @binding(0) var<uniform> lightParams: uLightParamStruct;
 
-
-// SOMEDAY: f64 polyfill
-// https://github.com/clickingbuttons/jeditrader/blob/a921a0e/shaders/src/fp64.wgsl
+@group(3) @binding(0) var gPos: texture_2d<f32>;
+@group(3) @binding(1) var gCol: texture_2d<f32>;
+@group(3) @binding(2) var gMat: texture_2d<u32>;
+@group(3) @binding(3) var gDepth: texture_depth_2d;
 
 ////////////////////////////////////////////////////////////////////////////////
 // UTILITY
@@ -313,32 +317,6 @@ fn Crgb(z : vec2f) -> vec3f {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Quaternionic : q == (k,j,i, 1)
-fn Qcon(q : vec4f) -> vec4f { return vec4f(-q.x, -q.y, -q.z, q.w); }
-fn Qsqr(q : vec4f) -> f32 { return dot(q,q); }
-fn Qinv(q : vec4f) -> vec4f { return Qcon(q) / Qsqr(q); }
-fn Qmul(a : vec4f, b : vec4f) -> vec4f {
-    return vec4f(
-        a.x*b.w + a.w*b.x - a.y*b.z + a.z*b.y,
-        a.y*b.w + a.w*b.y - a.z*b.x + a.x*b.z ,
-        a.z*b.w + a.w*b.z - a.x*b.y + a.y*b.x,
-        a.w*b.w - dot(a.xyz, b.xyz)
-    );
-}
-
-fn Qapp(a : vec4f, q : vec4f) -> vec4f { return Qmul(a, Qmul(q, Qinv(a))); }
-
-fn Qrgb(q : vec4f) -> vec3f {
-    return vec3(fract(0.5*q.xyz+0.5));
-    //vec3(pow(abs(cos(PI*q.w)), 6.0))
-}
-
-// TODO: reference against
-// Complex + Quaternion + Octonion + Sedenion code
-// use with attribution (c) Rodol 2018
-// https://www.shadertoy.com/view/ldGyR3
-
-////////////////////////////////////////////////////////////////////////////////
 // GBUF PASS
 struct VertIn {
     @builtin(instance_index) iIdx : u32,
@@ -517,21 +495,6 @@ fn vertScreen(
   @builtin(vertex_index) vIdx : u32
 ) -> @builtin(position) vec4f{
   return vec4f(ScreenPos[vIdx], 0.0, 1.0);
-}
-
-const julia_iter : i32 = 32;
-fn julia_dist(z0 : vec2f, c : vec2f) -> f32 {
-
-    var z = z0;
-    var it : i32;
-    for (it = 0; it < julia_iter; it+=1) {
-        z = Cmul(z,z) + c;
-        if (Csqr(z) > 1024) { break; }
-    }
-
-    if (it > (julia_iter-1)) { return f32(julia_iter); }
-    return f32(it) - log2(log2(Csqr(z))) + 4;
-
 }
 
 fn fractal(p :vec2f) -> vec3f {
@@ -730,11 +693,93 @@ fn skyColor(fPos : vec4f) -> vec4f {
         return vec4f(col, 1);
     }
 
+    if (skyMode == 5) {
+        let i = abs(ideal);
+        let s = step(vec3f(0), ideal);
+        let p = 3.0*ideal.x*ideal.y*ideal.z;
+        let q = 1.0/sqrt(3.0);
+
+        let W = vec3f( q, q, q);
+        let X = vec3f( q,-q,-q);
+        let Y = vec3f(-q, q,-q);
+        let Z = vec3f(-q,-q, q);
+
+        let a = 1.;
+        let b = 256.0;
+        return vec4f(
+            vec3(0)
+
+            + vec3f(1,1,1)*a*pow(0.5*(1.0+dot(ideal, W)), b)
+            + vec3f(1,0,0)*a*pow(0.5*(1.0+dot(ideal, X)), b)
+            + vec3f(0,1,0)*a*pow(0.5*(1.0+dot(ideal, Y)), b)
+            + vec3f(0,0,1)*a*pow(0.5*(1.0+dot(ideal, Z)), b)
+
+            + vec3f(1,1,1)*a*pow(length(cross(ideal, W)), b)
+            + vec3f(1,0,0)*a*pow(length(cross(ideal, X)), b)
+            + vec3f(0,1,0)*a*pow(length(cross(ideal, Y)), b)
+            + vec3f(0,0,1)*a*pow(length(cross(ideal, Z)), b)
+
+            + 0.5*(1.0-min(i.x, min(i.y, i.z)))
+            ,
+            1
+        )*uSky[0x0];
+    }
+
+    if (skyMode == 6) {
+        let i = 0.5+0.5*ideal;
+        let ii = abs(ideal);
+        let s = step(vec3f(0), ideal);
+        let p = 3.0*ideal.x*ideal.y*ideal.z;
+        let q = 1.0/sqrt(3.0);
+
+        let W = vec3f( q, q, q);
+        let X = vec3f( q,-q,-q);
+        let Y = vec3f(-q, q,-q);
+        let Z = vec3f(-q,-q, q);
+
+        let iDw = dot(ideal, W);
+        let iDx = dot(ideal, X);
+        let iDy = dot(ideal, Y);
+        let iDz = dot(ideal, Z);
+
+        let iXw = cross(ideal, W);
+        let iXx = cross(ideal, X);
+        let iXy = cross(ideal, Y);
+        let iXz = cross(ideal, Z);
+
+        let a = 1.;
+        let b = 128.0;
+
+        let col = vec4(
+            vec3(0)
+
+            + 4*i*a*pow(0.5*(1.0+iDw), b)
+            + 4*i*a*pow(0.5*(1.0+iDx), b)
+            + 4*i*a*pow(0.5*(1.0+iDy), b)
+            + 4*i*a*pow(0.5*(1.0+iDz), b)
+
+            + 8*(1-i)*a*(pow(0.5*(1.0-iDw), b) - pow(0.5*(1.0-iDw), b*1.5))
+            + 8*(1-i)*a*(pow(0.5*(1.0-iDx), b) - pow(0.5*(1.0-iDx), b*1.5))
+            + 8*(1-i)*a*(pow(0.5*(1.0-iDy), b) - pow(0.5*(1.0-iDy), b*1.5))
+            + 8*(1-i)*a*(pow(0.5*(1.0-iDz), b) - pow(0.5*(1.0-iDz), b*1.5))
+
+            + i*a*pow(length(iXw), b)
+            + i*a*pow(length(iXx), b)
+            + i*a*pow(length(iXy), b)
+            + i*a*pow(length(iXz), b)
+
+            + 2*i*a*pow(1.0-min(ii.x, min(ii.y, ii.z)), 8.0)
+            ,
+            1
+        );
+        return col*uSky[0x0];
+    }
+
     return vec4f(0,0,0, 1);
 }
 
 @fragment
-fn fragDeferred(
+fn fragDeferredUnlit(
     @builtin(position) fPos : vec4f
 ) -> @location(0) vec4f {
     let ifPos = vec2i(floor(fPos.xy));
@@ -759,4 +804,76 @@ fn fragDeferred(
 
 
     return vec4f(mix(col.rgb, uFog.rgb, fog), 1);
+}
+
+@fragment
+fn fragDeferredLit(
+    @builtin(position) fPos : vec4f
+) -> @location(0) vec4f {
+    let ifPos = vec2i(floor(fPos.xy));
+
+    let pos = textureLoad(gPos, ifPos, 0);
+    if (pos.a == 0) { discard; }
+
+    let viewpos = uMat.ViewFromWorld * pos;
+    let td = length(viewpos.xyz/viewpos.w);
+    let fog = select(0, pow(td, 1/uFog.a), uFog.a>0);
+
+    var omT = transpose(objMat);
+    omT[0][3] *= -1; omT[1][3] *= -1; omT[2][3] *= -1;
+    omT[3][0] *= -1; omT[3][1] *= -1; omT[3][2] *= -1;
+    let p = omT*pos;
+
+    var d = 0.0;
+    switch (i32(lightParams.Mode)) {
+        default: {}
+        case 0: { // Point
+            d = Dist(p, vec4f(0,0,0,1));
+        }
+
+        case 1: { // Line
+            d = Dist(vec4f(1,0,0,1)*p, p);
+        }
+        case 2: { // Collar
+            d = Dist(vec4f(0,1,1,1)*p, vec4f(0,0,0,1));
+        }
+
+        case 3: { // Plane
+            d = Dist(vec4f(0,1,1,1)*p, p);
+        }
+        case 4: { // Zone
+            d = Dist(vec4f(1,0,0,1)*p, vec4f(0,0,0,1));
+        }
+
+        case 5: { // Ambient
+            d = 0;
+        }
+
+    }
+
+    var k = 0.0;
+    if (lightParams.R0 < lightParams.R1) {
+        k = smoothstep(lightParams.R1, lightParams.R0, d);
+    } else {
+        k = 1.0-smoothstep(lightParams.R1, lightParams.R0, d);
+    }
+
+    let col = textureLoad(gCol, ifPos, 0);
+
+    return vec4f(k*objTint.rgb*col.rgb,1);
+}
+
+@fragment
+fn fragDeferredSky(
+    @builtin(position) fPos : vec4f
+) -> @location(0) vec4f {
+    let ifPos = vec2i(floor(fPos.xy));
+    let pos = textureLoad(gPos, ifPos, 0);
+    if (pos.a == 0) { return skyColor(fPos); }
+
+    let viewpos = uMat.ViewFromWorld * pos;
+    let td = length(viewpos.xyz/viewpos.w);
+    let fog = select(0, pow(td, 1/uFog.a), uFog.a>0);
+
+    return vec4f(fog*uFog.rgb, fog);
 }
