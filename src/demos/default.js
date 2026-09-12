@@ -16,6 +16,8 @@ import { Sphere } from "../node/scene/shape.js";
 
 import { Orveyl3dController } from "../node/component/controllers/Orveyl3dController.js";
 
+Orveyl.SetTitle("HOME");
+
 Orveyl.DefaultPlayer.attach(
     new Orveyl3dController("3dController")
 );
@@ -153,22 +155,22 @@ const wt = PentaNet().populate();
     new Text("ADC").attachTo(DefaultDemo)
     .setRelative(M4.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(+ds/3), M4.MovX(ds)))
     .setSize(1, 1, 1/16).setOffset(-1)
-    .setText("ADC").commit();
+    .setText("adc").commit();
     
     new Text("TutorialText").attachTo(DefaultDemo)
     .setRelative(M4.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(-ds/3), M4.MovX(ds)))
-    .setSize(1, 1, 1/32).setOffset(-12).setSpacing(2)
+    .setSize(1, 1, 1/32).setOffset(-12).setSpacing(1, 2)
     .setText(
-        "       WELCOME TO       ",
+        "       welcome to       ",
         " -- HYPERBOLIC SPACE -- ",
-        "USE KEYBOARD TO NAVIGATE",
+        "use keyboard to navigate",
     ).commit();
 
     const list_txt = new Text("DemoListText").attachTo(DefaultDemo)
     .setRelative(M4.lm(M4.RotI(-π/2), M4.RotJ(-π/2), M4.MovZ(-ds), M4.MovX(ds)))
-    .setSize(1, 1, 1/16).setOffset(-11).setSpacing(2.83)
+    .setSize(1, 1, 1/16).setOffset(-11).setSpacing(1, 2.83)
     .setText(
-        "      -- DEMOS --      ",
+        "      -- demos --      ",
         " <TERRAIN>-@#",
         "<TRIGROUP>-@#",
         " <FRACTAL>-@#",

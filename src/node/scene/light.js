@@ -50,6 +50,12 @@ export class Light extends Scene {
         this.write();
     }
 
+    invalidate() {
+        super.invalidate();
+        DrawCollector.invalidate();
+        return this.write();
+    }
+
     write() {
         this.ob.mat.set(this.world_from_local, 0).write();
         this.ob.tint.set(this.tint ?? [1,1,1,1], 0).write();

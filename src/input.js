@@ -55,22 +55,11 @@ export class GamepadAction extends InputAction {
     }
 
     read(gp) {
-        switch(this.axis) {
-            case Input.Gamepad.LX: return gp.axes[0];
-            case Input.Gamepad.LY: return gp.axes[1];
-            case Input.Gamepad.RX: return gp.axes[2];
-            case Input.Gamepad.RY: return gp.axes[3];
-
-            case Input.Gamepad.LZ: return gp.buttons[6].value;
-            case Input.Gamepad.RZ: return gp.buttons[7].value;
-
-            case Input.Gamepad.LC: return gp.buttons[10].value;
-            case Input.Gamepad.RC: return gp.buttons[11].value;
-
-            case Input.Gamepad.LB: return gp.buttons[4].value;
-            case Input.Gamepad.RB: return gp.buttons[5].value;
+        if (this.axis >= Input.Gamepad.AXIS_OFFSET) {
+            return gp.axes[this.axis - Input.Gamepad.AXIS_OFFSET];
         }
-        return 0;
+
+        return gp.buttons[this.axis].value;
     }
 };
 
@@ -143,19 +132,32 @@ export class Input {
     });
 
     static Gamepad = Object.freeze({
+        A: 0,
+        B: 1,
+        X: 2,
+        Y: 3,
+
+        LB: 4,
+        RB: 5,
+        LZ: 6,
+        RZ: 7,
+
+        BACK: 8,
+        START: 9,
+
+        LC: 10,
+        RC: 11,
+
+        DPAD_U: 12,
+        DPAD_L: 13,
+        DPAD_R: 14,
+        DPAD_D: 15,
+
+        AXIS_OFFSET: 1000,
         LX: 1000,
         LY: 1001,
         RX: 1002,
         RY: 1003,
-
-        LZ: 2000,
-        RZ: 2001,
-
-        LC: 2010,
-        RC: 2011,
-
-        LB: 3000,
-        RB: 3001,
     });
 
     static KeyState = new Set();

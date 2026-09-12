@@ -44,7 +44,7 @@ export class Orveyl {
     static VertexBuffers = {};
     static IndexBuffers = {};
 
-    static InstanceCount = 1024;
+    static InstanceCount = 1; // save some memory until you're ready TODO instancing
 
     static ShaderModules = {};
 
@@ -91,12 +91,20 @@ export class Orveyl {
         
         Orveyl.InitSystemDefaults();
         Orveyl.InitInput();
+
+        // preserve maximization & UI visibility between page loads
+        // -- fullscreen must be set manually by user to persist!
+        if (JSON.parse(localStorage.getItem("Maximized"))) {
+            Orveyl.SetMaximized(true);
+        }
+        if (JSON.parse(localStorage.getItem("ImmersiveMode"))) {
+            Orveyl.SetImmersiveMode(true);
+        }
         
         Orveyl.InitScene();
 
-        document.getElementById("fullscreen").onclick = () => {
-            const fs = Orveyl.ToggleFullscreen();
-            Orveyl.SetMaximized(fs);
+        document.getElementById("maximize").onclick = () => {
+            Orveyl.ToggleMaximized();
         }
         
         requestAnimationFrame(Orveyl.Update);
@@ -190,6 +198,7 @@ export class Orveyl {
         Orveyl.ResizeCanvas(
             ...(Orveyl.Maximized ? Orveyl.MaxResolution : Orveyl.DefaultResolution)
         );
+        localStorage.setItem("Maximized", Orveyl.Maximized);
         return Orveyl.Maximized;
     }
 
@@ -215,18 +224,26 @@ export class Orveyl {
         return Orveyl.SetFullscreen(!document.fullscreenElement);
     }
 
-    static ToggleImmersiveMode() {
-        if (Orveyl.Canvas.style.zIndex > 0) {
-            Orveyl.SetMaximized(false);
-            Orveyl.SetFullscreen(false);
-            Orveyl.Canvas.style.zIndex = -1;
-            return false;
-        }
+    static GetImmersiveMode() {
+        return (Orveyl.Canvas.style.zIndex > 0);
+    }
 
-        Orveyl.SetMaximized(true);
-        Orveyl.SetFullscreen(true, Orveyl.Canvas);
-        Orveyl.Canvas.style.zIndex = +1;
-        return true;
+    static SetImmersiveMode(enabled) {
+        if (enabled) {
+            Orveyl.Canvas.style.zIndex = +1;
+            Orveyl.Canvas.style.cursor = "none";
+            //document.body.requestPointerLock();
+        } else {
+            Orveyl.Canvas.style.zIndex = -1;
+            Orveyl.Canvas.style.cursor = "auto";
+            //document.exitPointerLock();
+        }
+        localStorage.setItem("ImmersiveMode", enabled);
+        return enabled;
+    }
+
+    static ToggleImmersiveMode() {
+        return Orveyl.SetImmersiveMode(!Orveyl.GetImmersiveMode());
     }
 
     static InitContext() {
@@ -993,6 +1010,9 @@ export class Orveyl {
         Orveyl.DefaultController = new OrveylDefaultController("DefaultController")
             .attachTo(Orveyl.DefaultPlayer);
 
+        Orveyl.DefaultCamera = new Camera("DefaultCamera")
+            .attachTo(Orveyl.DefaultPlayer);
+
         const OrbitCameraRoot = new Scene("OrbitCameraRoot")
             .attachTo(Orveyl.DefaultPlayer)
             .attach(
@@ -1007,7 +1027,7 @@ export class Orveyl {
             .attachTo(OrbitCameraRoot, M4.MovX(-2));
 
         Camera.Manager.add(
-            new Camera("DefaultCamera").attachTo(Orveyl.DefaultPlayer),
+            Orveyl.DefaultCamera,
 
             new Camera("TopDownCamera")
                 .attachTo(Orveyl.DefaultPlayer)
@@ -1079,32 +1099,48 @@ export class Orveyl {
         Orveyl.Input.addGamepadAction("analogRz", Input.Gamepad.RZ);
         Orveyl.Input.addGamepadAction("analogRb", Input.Gamepad.RB);
         Orveyl.Input.addGamepadAction("analogRc", Input.Gamepad.RC);
+
+        Orveyl.Input.addGamepadAction("buttonBack", Input.Gamepad.BACK);
+        Orveyl.Input.addGamepadAction("buttonStart", Input.Gamepad.START);
     }
 
     static InitScene() {
-        const load_demo = name => {
+        const load_script = (path, onScriptLoad=null) => {
+            Orveyl.SetTitle("Loading...")
             const script = document.createElement('script');
             script.type = `module`;
-            script.src = `/src/demos/${name}.js`;
-            script.onload = function () {
-                console.log(`Loaded demo: ${script.src}`);
-                if (name != "default") {
-                    const title = name.toUpperCase();
-                    document.title = `ORVEYL :: ${title}`;
-                    document.getElementById("title").innerHTML = title;
-                } else {
-                    document.title = `:: ORVEYL ::`;
-                    document.getElementById("title").innerHTML = "HOME";
-                }
-            };
-
-            document.title = `ORVEYL :: Loading...`;
-            document.getElementById("title").innerHTML = "Loading...";
-            console.log(`Loading demo... ${script.src}`)
+            script.src = `/src/demos/${path}.js`;
+            script.onload = () => {
+                console.log(`Loaded: ${script.src}`);
+                if (onScriptLoad) onScriptLoad(script.src);
+            }
+            console.log(`Loading... ${script.src}`)
             document.head.appendChild(script);
         };
 
-        load_demo(Orveyl.InitParams.get("demo") ?? "default");
+        const set_demo_title = (src) => {
+            const name = src
+                .split("/").pop()
+                .replace(/\.[^/.]+$/, "")
+                .toUpperCase();
+            if (name == "DEFAULT") Orveyl.SetTitle("HOME");
+            else Orveyl.SetTitle(name);
+        };
+
+        if (Orveyl.InitParams.has("tanh")) {
+            const dst = Orveyl.InitParams.get("w") ?? "hub";
+            load_script(`tanh/map/${dst}`);
+        } else {
+            load_script(
+                Orveyl.InitParams.get("demo") ?? "default",
+                set_demo_title
+            );
+        }
+    }
+
+    static SetTitle(doc_title, sub_title=null) {
+        document.title = `ORVEYL :: ${doc_title}`;
+        document.getElementById("title").innerHTML = sub_title ?? doc_title;
     }
 
     static SkyMode = {
@@ -1243,6 +1279,9 @@ export class Orveyl {
 
         Orveyl.DrawDeferred();
 
+        // TODO: the above calls handle opaque lit geom, so
+        // consider a separate mode for opaque unlit geometry here.
+        // (it's also about time for a blend mode enum)
         const blend_order = [1, 2];
         for (let i of blend_order) {
             Orveyl.DrawGeom(DrawCollector.Instance.geom[i], blend_desc,
@@ -1344,9 +1383,20 @@ export class Orveyl {
         pass.setBindGroup(Orveyl.BindGroupIndex.LightData, Orveyl.BindGroups.LightData);
         pass.setBindGroup(Orveyl.BindGroupIndex.GBufTextures, Orveyl.BindGroups.GBufTextures);
 
+        // TODO: you cannot be drawing all of these lights my dude
         if (Orveyl.DrawLitEnabled) {
             pass.setPipeline(Orveyl.Pipelines.DeferredLit);
-            for (let light of DrawCollector.Instance.lights) {
+
+            // PERF HACK
+            const pp = Orveyl.DefaultPlayer.world_from_local.Cw ?? V4.w;
+            const lights_in_radius = DrawCollector.Instance.lights.filter(
+                x => (
+                    (x.mode == Light.Mode.Ambient) ||
+                    V4.dist(pp, x.world_from_local.Cw) < (3 + x.r1)
+                )
+            );
+
+            for (let light of lights_in_radius) {
                 pass.setBindGroup(Orveyl.BindGroupIndex.ObjectData, light.bg_objData);
                 pass.setBindGroup(Orveyl.BindGroupIndex.LightData, light.bg_lightData);
                 pass.draw(3);

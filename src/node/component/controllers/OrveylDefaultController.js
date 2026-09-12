@@ -40,6 +40,10 @@ export class OrveylDefaultController extends Controller {
             if (input.tick("space") == 1) this.addBreadcrumb();
         }
 
+        if (input.curr("buttonStart")) {
+            this.resetParentTransform();
+        }
+
         this.parent?.invalidate();
     }
 

@@ -385,6 +385,7 @@ export class B4 extends F64Vec {
     }
 
     exp(N=24) {
+        if (this.eq(B4.zero)) return M4.id;
         return M4.Line(...this).exp(N);
     }
 
@@ -747,6 +748,7 @@ export class M4 extends F64Mat {
     rcas(...cols) { return cols.map(this.rca, this); }
 
     exp(N=24) {
+        if (this.eq(M4.zero)) return M4.id;
         const [pow, s] = [[M4.id, this.dup], [1,1]];
         for (let i = 1; i < N; ++i) { pow.push(M4.mm(this, pow[i])); s.push(s[i]/(i+1)) }
         this.id;
@@ -862,6 +864,7 @@ export class M4 extends F64Mat {
     }
 
     static Mov(dX, dY, dZ, dt=1) {
+        if (dt == 0 || (dX == 0 && dY == 0 && dZ == 0)) return M4.id;
         // TODO: check if this works for Sph case too
         const r = dt*Calc.Sqrt(dX*dX + dY*dY + dZ*dZ);
         const [C,S] = Geom.Exp(r);
