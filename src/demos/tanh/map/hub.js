@@ -153,6 +153,11 @@ const template_trees = [
     make_template_tree(3),
     make_template_tree(4),
     make_template_tree(5),
+    make_template_tree(5.5),
+    make_template_tree(6),
+    make_template_tree(6.5),
+    make_template_tree(7),
+    make_template_tree(7.5),
 ];
 
 const make_template_mushroom = (sc) => {
@@ -573,15 +578,19 @@ const build = (...features) => here => {
                 make(M.rm(M4.RotI(Rand.Sign()*π), M4.MovZ(Rand.Unit()*m(-1))));
             }
         } else {
-            const t = feat.radius ?? 1;
-            for (let edge of feat.edges ?? []) {
-                const p = V4.lerp(V4.w, e[wrap(edge)])(t);
-                make(M4.Along(p));
-            }
+            if (!feat.edges && !feat.verts) {
+                make(M4.id);
+            } else {
+                const t = feat.radius ?? 1;
+                for (let edge of feat.edges ?? []) {
+                    const p = V4.lerp(V4.w, e[wrap(edge)])(t);
+                    make(M4.Along(p));
+                }
 
-            for (let vert of feat.verts ?? []) {
-                const p = V4.lerp(V4.w, v[wrap(vert)])(t);
-                make(M4.Along(p));
+                for (let vert of feat.verts ?? []) {
+                    const p = V4.lerp(V4.w, v[wrap(vert)])(t);
+                    make(M4.Along(p));
+                }
             }
         }
 
@@ -952,7 +961,6 @@ wt.root.attach(
     make_dome(m(35), (t,u) => V4.rgb((1-t*t)*0.9,(1-t)*0.3,1-t*t*t))
 );
 
-const template_water = [{type:FLOOR, palette:FLOOR_PALETTE_WATER, height:-m(3)}];
 const template_great_pillar = [
     {type:EDGE_CLIFF, height:-m(250)},
     {type:EDGE_CLIFF, height:+m(250)},
@@ -960,13 +968,30 @@ const template_great_pillar = [
 
 const template_forest = [
     {type:FLOOR, palette:FLOOR_PALETTE_GRASS},
-    {type:TREE, count:12},
+    {type:TREE, count:12, min:0, max:2},
 ];
+
+const template_deep_forest = [
+    {type:FLOOR, palette:FLOOR_PALETTE_GRASS},
+    {type:TREE, count:16, min:1},
+];
+
+const template_water = [{type:FLOOR, palette:FLOOR_PALETTE_WATER, height:-m(3)}];
+const template_well = [
+    {type:FLOOR, palette:FLOOR_PALETTE_WATER, height:-m(10)},
+    {type:EDGE_WALL, height:-m(1), count: 10},
+];
+
+const make_well_light = () => {
+    return new Light("WellLight", Light.Mode.Collar, 0, m(25),
+        V4.rgb(0.4*Rand.Unit(), 0.4*Rand.Unit(), 0.3+0.7*Rand.Unit()).scXYZ(3/4)
+    ).rm(M4.RotJ(π/2));
+}
 
 const make_forest_island = (prefix) => {
     wt.add(`${prefix}z`, build(
         {type:FLOOR, palette:FLOOR_PALETTE_GRASS},
-        {type:TREE, edges:[0,1,2,3,4,5,6,7], radius:2/3},
+        {type:TREE, edges:[0,1,2,3,4,5,6,7], radius:2/3, max:2},
         {type:NODE}, {type:LAMP},
     ));
     wt.add(`${prefix}z0`, build(...template_forest));
@@ -1044,7 +1069,7 @@ wt.add("02", build(
     {type:FLOOR, palette:FLOOR_PALETTE_GRASS},
     {type:NODE},{type:PATH, edges:[2,4,6]},
     {type:EDGE_CLIFF, edges:[4,5,6,7]},
-    {type:TREE, edges:[0,1,3,5,7], radius:2/3},
+    {type:TREE, edges:[0,1,3,5,7], radius:2/3, max:2},
     {type:LAMP, verts:[5,6], radius:0.45},
 ));
 
@@ -1241,7 +1266,7 @@ wt.add("06417", build(...template_water));
 wt.add("13",  build(...template_forest));
 wt.add("130", build(
     {type:FLOOR, palette:FLOOR_PALETTE_GRASS},
-    {type:TREE, edges:[0,1,2,3,4,5,6,7], radius:2/3},
+    {type:TREE, edges:[0,1,2,3,4,5,6,7], radius:2/3, max:2},
     {type:NODE}, {type:LAMP},
 )).attach(new Light("ForestLight", Light.Mode.Collar,0,m(50),V4.rgb(0.4,0.3,0.0)).rm(M4.RotJ(π/2)));
 make_forest_island("130");
@@ -1259,7 +1284,7 @@ wt.add("14",  build(...template_forest));
 wt.add("142", build(...template_forest));
 wt.add("141", build(
     {type:FLOOR, palette:FLOOR_PALETTE_GRASS},
-    {type:TREE, edges:[0,1,2,3,4,5,6,7], radius:2/3},
+    {type:TREE, edges:[0,1,2,3,4,5,6,7], radius:2/3, max:2},
     {type:NODE},
 )).attach(make_night_dome());
 wt.add("140", build(...template_forest));
@@ -1294,7 +1319,7 @@ wt.add("1616", build(
 wt.add("1617", build(
     {type:FLOOR, palette:FLOOR_PALETTE_GRASS},
     {type:EDGE_CLIFF, edges:[0,1,2,3,4,5]},
-    {type:TREE, edges:[0,1,2,3,4,5,7], radius:2/3},
+    {type:TREE, edges:[0,1,2,3,4,5,7], radius:2/3, max:2},
     {type:NODE},
     {type:PATH, edges:[6]},
 )).attach(
@@ -1314,14 +1339,14 @@ wt.add("262", build(
     {type:FLOOR, palette:FLOOR_PALETTE_GRASS},
     {type:PATH, edges:[2]},{type:NODE},
     {type:LAMP, edges:[0,4,6], radius:2/3},
-    {type:TREE, verts:Calc.Iota(8), radius:2/3},
+    {type:TREE, verts:Calc.Iota(8), radius:2/3, max:2},
 ));
 
 wt.add("260", build(
     {type:FLOOR, palette:FLOOR_PALETTE_GRASS},
     {type:PATH, edges:[0]},{type:NODE},
     {type:LAMP, edges:[2,4,6], radius:2/3},
-    {type:TREE, verts:Calc.Iota(8), radius:2/3},
+    {type:TREE, verts:Calc.Iota(8), radius:2/3, max:2},
 ));
 wt.add("261", build(
     ...template_forest,
@@ -1336,7 +1361,7 @@ wt.add("264", build(
     {type:FLOOR, palette:FLOOR_PALETTE_GRASS},
     {type:PATH, edges:[4]},{type:NODE},
     {type:LAMP, edges:[0,2,6], radius:2/3},
-    {type:TREE, verts:Calc.Iota(8), radius:2/3},
+    {type:TREE, verts:Calc.Iota(8), radius:2/3, max:2},
 ));
 wt.add("265", build(
     ...template_forest,
@@ -1422,11 +1447,35 @@ wt.add("40754", build(...template_great_wall_flip));
 wt.add("407542", build(...template_great_wall_flip));
 wt.add("40753", build(...template_great_pillar));
 
-// mushroom forest
 const template_mushwoods = (N,c, min=0, max=template_mushrooms.length) => [
     {type:FLOOR, palette:FLOOR_PALETTE_MUSHROOM},
     {type:MUSH, count:N, color:c, min:min, max:max},
 ];
+
+const template_midmush = [
+    {type:FLOOR, palette:FLOOR_PALETTE_MUSHROOM},
+    {type:MUSH, color:undefined, min:4, max:5}
+];
+
+const template_bigmush = [
+    {type:FLOOR, palette:FLOOR_PALETTE_MUSHROOM},
+    {type:MUSH, color:undefined, min:7}
+];
+
+const make_mushroom_island = (prefix) => {
+    const N = 12;
+    wt.add(`${prefix}z`, build(...template_mushwoods(N, undefined, 0, 4)));
+    wt.add(`${prefix}z0`, build(...template_mushwoods(N, undefined, 0, 6)));
+    wt.add(`${prefix}z1`, build(...template_mushwoods(N, undefined, 0, 6)));
+    wt.add(`${prefix}z2`, build(...template_mushwoods(N, undefined, 0, 6)));
+    wt.add(`${prefix}z3`, build(...template_mushwoods(N, undefined, 0, 6)));
+    wt.add(`${prefix}z4`, build(...template_mushwoods(N, undefined, 0, 6)));
+    wt.add(`${prefix}z5`, build(...template_mushwoods(N, undefined, 0, 6)));
+    wt.add(`${prefix}z6`, build(...template_mushwoods(N, undefined, 0, 6)));
+    wt.add(`${prefix}z7`, build(...template_mushwoods(N, undefined, 0, 6)));
+}
+
+// mushroom forest
 wt.add("60", build(...template_mushwoods(8,1,0,4)));
 wt.add("64", build(...template_mushwoods(8,1,0,4)));
 
@@ -1466,17 +1515,109 @@ wt.add("6262", build(...template_mushwoods(8)));
 wt.add("6263", build(...template_mushwoods(8)));
 wt.add("6264", build(...template_mushwoods(8)));
 
-const make_mushroom_island = (prefix) => {
-    const N = 12;
-    wt.add(`${prefix}z`, build(...template_mushwoods(N, undefined, 0, 4)));
-    wt.add(`${prefix}z0`, build(...template_mushwoods(N, undefined, 0, 6)));
-    wt.add(`${prefix}z1`, build(...template_mushwoods(N, undefined, 0, 6)));
-    wt.add(`${prefix}z2`, build(...template_mushwoods(N, undefined, 0, 6)));
-    wt.add(`${prefix}z3`, build(...template_mushwoods(N, undefined, 0, 6)));
-    wt.add(`${prefix}z4`, build(...template_mushwoods(N, undefined, 0, 6)));
-    wt.add(`${prefix}z5`, build(...template_mushwoods(N, undefined, 0, 6)));
-    wt.add(`${prefix}z6`, build(...template_mushwoods(N, undefined, 0, 6)));
-    wt.add(`${prefix}z7`, build(...template_mushwoods(N, undefined, 0, 6)));
-}
-
 make_mushroom_island("626");
+
+// deep forest
+wt.add("36", build(...template_deep_forest));
+wt.add("37", build(...template_deep_forest));
+wt.add("30", build(...template_deep_forest));
+wt.add("31", build(...template_deep_forest));
+
+wt.add("363", build(...template_deep_forest));
+wt.add("362", build(...template_deep_forest));
+wt.add("361", build(...template_deep_forest));
+wt.add("360", build(...template_deep_forest));
+
+wt.add("374", build(...template_deep_forest));
+wt.add("373", build(...template_deep_forest));
+wt.add("372", build(...template_deep_forest));
+wt.add("371", build(...template_deep_forest));
+
+wt.add("305", build(...template_deep_forest));
+wt.add("304", build(...template_deep_forest));
+wt.add("303", build(...template_deep_forest));
+wt.add("302", build(...template_deep_forest));
+
+wt.add("314", build(...template_deep_forest));
+wt.add("315", build(...template_deep_forest));
+wt.add("316", build(...template_deep_forest));
+
+// giant mushroom habitat
+wt.add("51", build({type:FLOOR, palette:FLOOR_PALETTE_MUSHROOM}));
+wt.add("52", build(...template_great_pillar));
+
+wt.add("517", build(...template_great_pillar));
+wt.add("516", build(...template_midmush)); make_mushroom_island("516");
+wt.add("515", build(...template_midmush)); make_mushroom_island("515");
+wt.add("514", build(...template_midmush)); make_mushroom_island("514");
+wt.add("513", build(...template_midmush)); make_mushroom_island("513");
+
+make_mushroom_island("516z0");
+make_mushroom_island("516z2");
+make_mushroom_island("516z4");
+make_mushroom_island("516z6");
+
+make_mushroom_island("515z0");
+make_mushroom_island("515z2");
+make_mushroom_island("515z4");
+make_mushroom_island("515z6");
+
+make_mushroom_island("514z0");
+make_mushroom_island("514z2");
+make_mushroom_island("514z4");
+make_mushroom_island("514z6");
+
+make_mushroom_island("513z0");
+make_mushroom_island("513z2");
+make_mushroom_island("513z4");
+make_mushroom_island("513z6");
+
+wt.add("5160", build(...template_bigmush));
+wt.add("5161", build(...template_bigmush));
+wt.add("5162", build(...template_bigmush));
+wt.add("5163", build(...template_bigmush));
+wt.add("5164", build(...template_bigmush));
+
+wt.add("5150", build(...template_bigmush));
+wt.add("5151", build(...template_bigmush));
+wt.add("5152", build(...template_bigmush));
+wt.add("5153", build(...template_bigmush));
+
+wt.add("5147", build(...template_bigmush));
+wt.add("5140", build(...template_bigmush));
+wt.add("5141", build(...template_bigmush));
+wt.add("5142", build(...template_bigmush));
+
+wt.add("5136", build(...template_bigmush));
+wt.add("5137", build(...template_bigmush));
+wt.add("5130", build(...template_bigmush));
+wt.add("5131", build(...template_bigmush));
+
+// wishing wells
+wt.add("73", build({type:FLOOR},{type:LAMP}));
+wt.add("731", build(...template_great_pillar));
+wt.add("730", build(...template_well)).attach(make_well_light());
+wt.add("737", build(...template_well)).attach(make_well_light());
+wt.add("736", build(...template_well)).attach(make_well_light());
+wt.add("735", build(...template_well)).attach(make_well_light());
+
+wt.add("7302", build(...template_well)).attach(make_well_light());
+wt.add("7303", build(...template_well)).attach(make_well_light());
+wt.add("7304", build(...template_well)).attach(make_well_light());
+wt.add("7305", build(...template_well)).attach(make_well_light());
+wt.add("7306", build(...template_well)).attach(make_well_light());
+
+wt.add("7372", build(...template_well)).attach(make_well_light());
+wt.add("7373", build(...template_well)).attach(make_well_light());
+wt.add("7374", build(...template_well)).attach(make_well_light());
+wt.add("7375", build(...template_well)).attach(make_well_light());
+
+wt.add("7361", build(...template_well)).attach(make_well_light());
+wt.add("7362", build(...template_well)).attach(make_well_light());
+wt.add("7363", build(...template_well)).attach(make_well_light());
+wt.add("7364", build(...template_well)).attach(make_well_light());
+
+wt.add("7350", build(...template_well)).attach(make_well_light());
+wt.add("7351", build(...template_well)).attach(make_well_light());
+wt.add("7352", build(...template_well)).attach(make_well_light());
+wt.add("7353", build(...template_well)).attach(make_well_light());

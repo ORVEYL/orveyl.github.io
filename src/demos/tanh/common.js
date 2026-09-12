@@ -273,7 +273,7 @@ export class WalkingController extends Controller {
         }
 
         ds.scFlux(4*SI.m_to_au(SI.Ref.speed_mps.human_walking));
-        if (this.sprint) ds.scFlux(6.0);
+        if (this.sprint) ds.scFlux(2.0);
 
         ds.scFlux(1 / Math.cosh(this.altitude));
 
